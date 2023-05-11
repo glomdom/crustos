@@ -82,6 +82,7 @@ rootfspath: db "fs", 0
 wnfstr: db " word not found"
 uflwstr: db "stack underflow"
 wordexpstr: db "word expected"
+fatfs: incbin "fatfs"
 
 SECTION .text
 
@@ -549,6 +550,10 @@ defword 'here', 4, word_here
 
 defword 'heremax', 7, word_heremax
     pspush heremax
+    ret
+
+defword 'fatfs(', 6, word_fatfsaddr
+    pspush fatfs
     ret
 
 defword 'compiling', 9, word_compiling
