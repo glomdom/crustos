@@ -59,7 +59,8 @@ $00 const VM_NONE
 $01 const VM_CONSTANT       \ 42
 $02 const VM_STACKFRAME     \ ebp+x
 $03 const VM_REGISTER       \ eax
-$11 const VM_CONSTANTARRAY  \ pointer to an array with the 1st elem being length
+$04 const VM_CONSTANTARRAY  \ pointer to an array with the 1st elem being length
+$11 const VM_*CONSTANT      \ [1234]
 $12 const VM_*STACKFRAME    \ [ebp+x]
 $13 const VM_*REGISTER      \ [eax]
 
@@ -90,6 +91,7 @@ operands value 'curop
 : const>op ( n -- ) noop# VM_CONSTANT optype! oparg! ;
 : constarray>op ( a -- ) noop# VM_CONSTANTARRAY optype! oparg! ;
 : sf+>op ( off -- ) noop# VM_*STACKFRAME optype! oparg! ;
+: mem>op ( off -- ) noop# VM_*CONSTANT optype! oparg! ;
 
 \ Get current operand SF offset, adjusted with callsz
 : opsf+ ( -- off ) oparg callsz + ;
@@ -100,6 +102,7 @@ operands value 'curop
     VM_CONSTANT of = oparg i32 endof
     VM_STACKFRAME of = abort" can't address VM_STACKFRAME directly " endof
     VM_REGISTER of = oparg r! endof
+    VM_*CONSTANT of = oparg [i32] endof
     VM_*STACKFRAME of = opsf+ [ebp]+ endof
     VM_*REGISTER of = oparg [r]! endof
   _err endcase ;
@@ -122,6 +125,7 @@ operands value 'curop
 : opderef
   optype case
     VM_STACKFRAME of = op>reg endof
+    VM_*CONSTANT of = op>reg endof
     VM_*STACKFRAME of = op>reg endof
     VM_*REGISTER of = oparg r! oparg [r]! mov, VM_REGISTER optype! endof
   endcase ;
@@ -136,12 +140,15 @@ operands value 'curop
 : &op>op
   optype case
     VM_*STACKFRAME of = VM_STACKFRAME optype! endof
+    VM_*CONSTANT of = VM_CONSTANT optype! endof
     VM_*REGISTER of = VM_REGISTER optype! endof
   _err endcase ;
 
 \ If possible, dereference current operand
 : *op>op
   optype case
+    VM_CONSTANT of = VM_*CONSTANT optype! endof
+    VM_*CONSTANT of = op>reg *op>op endof
     VM_STACKFRAME of = VM_*STACKFRAME optype! endof
     VM_*STACKFRAME of = op>reg *op>op endof
     VM_REGISTER of = VM_*REGISTER optype! endof

@@ -15,8 +15,8 @@
 5 value BP
 6 value SI
 7 value DI
-8 value MEM
-9 value IMM
+5 value MEM
+8 value IMM
 
 \ Variables
 -1 value tgt        \ target | bit 31 is set if in indirect mode
@@ -30,6 +30,7 @@
 : tgt? tgt 0>= ;
 : src? src 0>= ;
 : disp? disp 0>= ;
+: disp32? src MEM = tgt MEM = or ;
 : _id dup 0< if _err then $1f and ;
 : tgtid tgt _id ;
 : srcid src _id ;
@@ -54,39 +55,39 @@
 : [edi] DI [r]! ;
 : [ebp]+ ( disp -- ) BP [r]+8b! to disp ;
 : i32 IMM $400 or to src ;
+: [i32] ( n -- ) MEM tgt-or-src! to disp ;
 
 \ Writing the thing
-\ TODO: Big mess, rewrite the entire thing.
-: disp, disp? if disp c, then ;
+: disp, disp? if disp disp32? if , else c, then then ;
 : prefix, ( -- ) exit
   tgt is16? if $66 c, then src isimm? not swap is16? and if $67 c, then ;
 : op, ( op -- ) dup 8 rshift ?dup if c, then c, ;
 : inh, ( op -- ) op, asm$ ;
 : modrm1, ( reg op -- )                   \ modrm op with 1 argument
-  prefix, op, ( reg ) 3 lshift tgtid tgt mod or or ( modrm ) c,
+  prefix, op, ( reg ) 3 lshift tgtid tgt mod or or c,
   disp? if disp c, then asm$ ;
 : modrm<imm, ( imm immreg op -- )
-  op, 3 lshift tgtid or tgt mod or ( modrm ) c, disp, , asm$ ;
+  op, 3 lshift tgtid or tgt mod or c, disp, , asm$ ;
 : modrm2, ( imm? reg op -- )                  \ modrm op with 2 arguments
   src mod $c0 = not if
-    2 + c, ( src ) mod tgt 3 lshift or srcid or
+    2 + c, mod tgt 3 lshift or srcid or
   else
     c, 3 lshift tgtid or tgt mod or then
-  ( modrm ) c, disp, asm$ ;
+  c, disp, asm$ ;
 
 \  Operations
 \ Inherent
-: op ( opcode -- ) doer c, does> ( a -- ) c@ inh, ;
+: op ( opcode -- ) doer c, does> c@ inh, ;
 $c3 op ret,
 
 \ Relative Jumps
-: op ( opcode -- ) doer , does> ( rel32 a -- ) @ op, , ;
+: op ( opcode -- ) doer , does> @ op, , ;
 $00e9 op jmp,
 $0f84 op jz,
 $0f85 op jnz,
 
 \ Single Operand
-: op ( reg opcode -- ) doer , c, does> ( a -- )
+: op ( reg opcode -- ) doer , c, does>
   dup @ swap 4 + c@ swap modrm1, ;
 4 $f7 op mul,
 3 $f7 op neg,
@@ -99,11 +100,11 @@ $0f85 op jnz,
 0 $0f95 op setnz,
 
 \ Two Operands
-: op ( immop immreg regop -- ) doer c, c, c, does> ( imm? a -- )
+: op ( immop immreg regop -- ) doer c, c, c, does>
   prefix,
   isimm? if
-    dup 1+ c@ ( immreg ) swap 2 + c@ ( immreg immop ) modrm<imm, else
-    c@ src swap ( reg regop ) modrm2, then ;
+    dup 1+ c@ swap 2 + c@ modrm<imm, else
+    c@ src swap modrm2, then ;
 $81 0 $01 op add,
 $81 7 $39 op cmp,
 $81 5 $29 op sub,
@@ -112,7 +113,7 @@ $81 4 $21 op and,
 $81 1 $09 op or,
 
 \ tgt or-ed in
-: op ( op -- ) doer c, does> ( a -- ) c@ tgtid or c, asm$ ;
+: op ( op -- ) doer c, does> c@ tgtid or c, asm$ ;
 $58 op pop,
 $50 op push,
 
