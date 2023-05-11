@@ -26,5 +26,6 @@ exprparens 9 #eq
 cnoop scnt 0 #eq
 42 ptrari 46 #eq
 array 52 #eq
+global 1234 #eq
 
 testend

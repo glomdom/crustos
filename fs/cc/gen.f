@@ -12,8 +12,10 @@ alias noop gennode
 
 : spit A>r >r >A begin Ac@+ .x1 next r>A ;
 : lv>decl
-  dup ast.lvalue.name swap AST_FUNCTION parentnodeid
-  ast.func.finddecl dup _assert ;
+  dup ast.lvalue.name dup rot AST_FUNCTION parentnodeid
+  ast.func.finddecl ?dup not if
+    ast.unit.find dup _assert else
+    nip then ;
 
 \\ Multiply the value of "node" by a factor of "n"
 \\ FIXME: doesnt support lvalues and expressions
@@ -90,14 +92,24 @@ BOPSCNT wordtbl bopgentblpost ( -- )
 :w ( = ) vmmov, ;
 
 : decl>op ( dnode -- )
-  dup ast.decl.sfoff sf+>op
-  ast.decl.nbelem 1 > if &op>op then ;
+  dup ast.decl.isglobal? if
+    ast.decl.sfoff mem>op
+  else
+    dup ast.decl.sfoff sf+>op
+    ast.decl.nbelem 1 > if &op>op then
+  then ;
 
 ASTIDCNT wordtbl gentbl ( node -- )
 :w ( Declare )
-  dup parentnode nodeid AST_UNIT =
-  if
-    ." global!" drop
+  dup ast.decl.isglobal? if
+    here over to ast.decl.sfoff
+    dup ast.decl.totsize allot
+    dup firstchild nodeid case
+      AST_CONSTANT of =
+        dup firstchild ast.const.value
+        over ast.decl.sfoff !
+      endof
+    endcase drop
   else
     dup firstchild ?dup if
       selop1 gennode op1<>op2
@@ -164,7 +176,8 @@ ASTIDCNT wordtbl gentbl ( node -- )
   dup firstchild ?dup if -4 swap begin
     dup selop1 gennode swap dup selop2 sf+>op op1<>op2 vmmov, ops$
     4 - swap nextsibling ?dup not until drop then
-  ast.funcall.funcname ast.unit.findfunc dup _assert
+  ast.funcall.funcname ast.unit.find
+  dup _assert dup nodeid AST_FUNCTION = _assert
   ast.func.address vmcall>op1, ;
 
 : _ ( node -- ) gentbl over nodeid wexec ;

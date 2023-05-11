@@ -47,10 +47,12 @@ create bopsprectbl  1 c, 1 c, 0 c, 0 c, 2 c, 2 c, 2 c, 2 c,
 \ 13 unused
 14 const AST_FUNCALL
 
+\ It's important that decl.name and func.name have the same offset.
+\ Poor man's polymorphism..
 NODESZ      ufield ast.decl.name
 NODESZ 4 +  ufield ast.decl.type
 NODESZ 8 +  ufield ast.decl.nbelem
-NODESZ 12 + ufield ast.decl.sfoff
+NODESZ 12 + ufield ast.decl.sfoff       \ for global vars, this is an absolute address
 NODESZ      ufield ast.func.name
 NODESZ 4 +  ufield ast.func.sfsize
 NODESZ 8 +  ufield ast.func.type
@@ -70,12 +72,11 @@ ASTIDCNT stringlist astidnames
 
 : idname ( id -- str ) astidnames slistiter ;
 
-: ast.unit.findfunc ( name -- fnode-or-0 )
+: ast.unit.find ( name -- fnode-or-0 )
   curunit firstchild begin
     ?dup while
-    dup nodeid AST_FUNCTION = if
-      over over ast.func.name s= if
-        nip exit then then
+    over over ast.func.name s= if
+      nip exit then
     nextsibling repeat drop 0 ;
 
 \ Number of bytes required to hold this variable declaration in memory.
@@ -85,6 +86,7 @@ ASTIDCNT stringlist astidnames
   1 max * ;
 
 : ast.decl.isarg? ( dnode -- f ) parentnode nodeid AST_ARGSPECS = ;
+: ast.decl.isglobal? ( dnode -- f ) parentnode nodeid AST_UNIT = ;
 
 : _ ( name args-or-stmts -- dnode-or-0 )
   firstchild begin ( name node )
@@ -330,7 +332,7 @@ current to parseStatements
     endof
 
     AST_DECLARE newnode rot> , ,
-    r@ parseNbelem ,
+    r@ parseNbelem , 0 ,
     nextt parseDeclareInit
   endcase ;
 

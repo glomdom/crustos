@@ -102,3 +102,7 @@ int array() {
 
 int global1 = 1234;
 int global2[3] = {4, 5, 6};
+
+int global() {
+    return global1;
+}
