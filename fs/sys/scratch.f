@@ -7,6 +7,8 @@
 \ at the end of the buffer, it goes back to the beginning.
 
 $4000 value scratchsize
+0 value _here
+
 create scratch( scratchsize allot
 : scratch) scratch( scratchsize + ;
 
@@ -23,3 +25,10 @@ scratch( value scratch>
 \ Transforms `str` into a null-terminated one
 : str>zstr ( str -- zstr )
   c@+ dup 1+ scratchallot0 dup >r swap move r> ;
+
+\ Open a scratch area for writing
+: scratch[ ( -- ) here to _here scratch> to here ;
+
+\ Stop writing to the scratch area and restore here
+\ Returns the address of the beginning of the written area
+: ]scratch ( -- a ) scratch> here to scratch> _here to here ;

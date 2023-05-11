@@ -3,6 +3,11 @@
 
 : fopen ( fname -- fd ) str>zstr zfopen ;
 
+\ This creates a `f<` reader with the file descriptor embedded in it. This
+\ allows for a straightforward override of input/output words.
+: [f<] ( curfd -- word )
+  scratch[ litn compile fread exit, ]scratch ;
+
 \ Autoloading
 \ Entries in the floaded list have both a length byte and
 \ a null termination byte. The null termination is used only

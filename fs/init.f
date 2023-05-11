@@ -5,6 +5,7 @@ f<< lib/core.f
 f<< lib/dict.f
 f<< lib/annotate.f
 f<< sys/doc.f
+f<< lib/io.f
 f<< sys/scratch.f
 f<< lib/file.f
 f<< lib/nfmt.f
