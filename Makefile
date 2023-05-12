@@ -12,7 +12,7 @@ fatfs: fs
 	@echo " DD       $@"
 	@dd if=/dev/zero of=$@ bs=4M count=1 status=none
 	@echo " MFORMAT  $@"
-	@mformat -c 1 -i $@ ::
+	@mformat -c 1 -d 1 -i $@ ::
 	@echo " MCOPY    fs/* -> $@"
 	@mcopy -sQ -i $@ fs/* ::
 

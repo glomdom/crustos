@@ -10,6 +10,7 @@ f<< sys/scratch.f
 f<< sys/drive.f
 f<< drv/ramdrive.f
 fatfs( to ramdrv(
+RAMDRVSECSZ to drvblksz
 ' ramdrv@ to (drv@)
 ' ramdrv! to (drv!)
 f<< lib/file.f

@@ -5,7 +5,6 @@
 
 testbegin
 
-0 drv@
-drvbuf( $36 + 8 []>str S" FAT16   " #s=
+$36 8 drvseek 8 []>str S" FAT16   " #s=
 
 testend

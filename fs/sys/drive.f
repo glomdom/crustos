@@ -13,13 +13,16 @@
 \ the data held by the storage device to be an array of contiguous blocks of
 \ `drvblksz` bytes in size.
 
-\ The Drive subsystem holds a temporary buffer and manages it. This buffer can
-\ be larger than `drvblksz` to accommodate the possibility of hot-switching
-\ storage drivers, but it *has* to be at least `drvblksz` in bytes.
+\ The Drive subsystem holds a temporary buffer and manages it. This buffer should
+\ be atleast twice as large as the largest drvblksz it's ever going to handle.
+\ Being able to hold 2 blocks in memory in necessary for `drvseek`.
 
-$400 const DRVBUFSZ
+$1000 const DRVBUFSZ
 create drvbuf( DRVBUFSZ allot
-DRVBUFSZ value drvblksz
+DRVBUFSZ >> value drvblksz
+
+\ Block number currently in drvbuf(
+-1 value drvcurblk
 
 ( blkno buf -- )
 alias abort (drv@)
@@ -27,5 +30,14 @@ alias abort (drv@)
 ( blkno buf -- )
 alias abort (drv!)
 
-: drv@ ( blkno -- ) drvbuf( (drv@) ;
-: drv! ( blkno -- ) drvbuf( (drv!) ;
+: drv@ ( blkno -- ) dup to drvblksz drvbuf( (drv@) ;
+: ?drv@ ( blkno -- ) dup drvblksz = if drop else drv@ then ;
+
+\ Ensure that the block containing the offset `off` (in bytes) is loaded and that
+\ there's atleast `u` bytes following that offset which is present in the buffer.
+\ `u` cannot be larger than `drvblksz`
+: drvseek ( off u - a )
+  dup drvblksz > if abort" cannot ensure that many bytes in drive buffer" then
+  swap drvblksz /mod ?drv@
+  tuck + drvblksz >= if drvcurblk 1+ drvbuf( drvblksz + (drv@) then
+  drvbuf( + ;
