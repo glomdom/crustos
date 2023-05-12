@@ -415,6 +415,19 @@ defword 'c,', 2, word_cwrite
     inc dword [here]
     ret
 
+defword 'w@', 2, word_wfetch
+    mov esi, [ebp]
+    mov eax, 0
+    mov ax, [esi]
+    mov [ebp], eax
+    ret
+
+defword 'w!', 2, word_wstore
+    pspop eax
+    pspop ebx
+    mov [eax], bx
+    ret
+
 defword '@', 1, word_fetch
     mov esi, [ebp]
     mov eax, [esi]

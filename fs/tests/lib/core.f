@@ -53,6 +53,6 @@ bar 102 #eq
 floaded #
 
 S" some_nonexistant_file" floaded? not #
-S" lib/core.f" floaded? #
+S" tests/harness.f" floaded? #
 
 testend
