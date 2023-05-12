@@ -1,4 +1,7 @@
-0 value _debug
+require sys/scratch.f
+require sys/xhere.f
+
+1 value _debug
 
 ?f<< lib/str.f
 ?f<< lib/wordtbl.f

@@ -4,6 +4,8 @@
 ?f<< tests/harness.f
 ?f<< drv/ramdrive.f
 
+require sys/scratch.f
+
 testbegin
 
 fatfs( to ramdrv(
