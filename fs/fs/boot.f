@@ -13,8 +13,8 @@
 
 $18 const BPBSZ
 create bpb BPBSZ allot
+0 drv@ drvbuf( bpb BPBSZ move
 
-: fat16$ 0 drv@ drvbuf( bpb BPBSZ move ;
 : BPB_BytsPerSec bpb $0b + w@ ;
 : BPB_SecPerClus bpb $0d + c@ ;
 : BPB_RsvdSecCnt bpb $0e + w@ ;
@@ -29,20 +29,30 @@ create bpb BPBSZ allot
 : FirstRootDirSecNum BPB_RsvdSecCnt BPB_NumFATs BPB_FATSz16 * + ;
 
 32 const DIRENTRYSZ
-create fnbuf 11 allot
+\ A buffer where dir entries are copied before we search in them. It's big
+\ enough to hold the root dir entries. This means that no directory in the
+\ filesystem can have more than BPB_RootEntCnt entries.
+create dirbuf( RootDirSectors BPB_BytsPerSec * allot
+here const )dirbuf
+11 const FNAMESZ
+create fnbuf FNAMESZ allot
 
 : upcase ( c -- c ) dup 'a' - 26 < if $df and then ;
 
 \ We assume a 8.3 name - DO NOT call this with an inadequate name.
 : _tofnbuf ( fname -- )
-  A>r >A Ac@+ >r fnbuf 11 SPC fill fnbuf begin
+  A>r >A Ac@+ >r fnbuf FNAMESZ SPC fill fnbuf begin
     Ac@+ dup '.' = if 2drop fnbuf 8 + upcase swap c!+ then
     next drop r>A ;
 
-\ Search in the directory that is currently loaded in drvbuf.
-\ Returns the address of the directory entry, or 0 if not found.
-\ TODO: Support more than 1 sector dir entry
-: findindir ( fname -- )
-  16 >r drvbuf( begin
-    fnbuf over 11 []= if r~ exit then DIRENTRYSZ + next
-  abort" file not found" ;
+\ Search in the directory that is currently loaded in dirbuf.
+\ Returns the address of the dir entry, aborts if not found.
+: findindir ( fname -- direntry ) _tofnbuf
+  dirbuf( begin
+    dup )dirbuf < while
+    fnbuf over FNAMESZ []= not while DIRENTRYSZ + repeat
+    else abort" file not found" then ;
+  
+\ Make the current dir the root dir
+: readroot A>r RootDirSectors >r FirstRootDirSecNum >A dirbuf( begin
+  A> over (drv@) A+ drvblksz + next drop r>A ;

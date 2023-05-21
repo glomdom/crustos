@@ -11,9 +11,8 @@
 
 testbegin
 
-fat16$
-FirstRootDirSecNum drv@
+readroot
 S" init.f" findindir
-11 []>str S" INIT   FS " #s=
+FNAMESZ []>str S" INIT   FS " #s=
 
 testend

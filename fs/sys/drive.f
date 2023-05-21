@@ -30,8 +30,8 @@ alias abort (drv@)
 ( blkno buf -- )
 alias abort (drv!)
 
-: drv@ ( blkno -- ) dup to drvblksz drvbuf( (drv@) ;
-: ?drv@ ( blkno -- ) dup drvblksz = if drop else drv@ then ;
+: drv@ ( blkno -- ) dup to drvcurblk drvbuf( (drv@) ;
+: ?drv@ ( blkno -- ) dup drvcurblk = if drop else drv@ then ;
 
 \ Ensure that the block containing the offset `off` (in bytes) is loaded and that
 \ there's atleast `u` bytes following that offset which is present in the buffer.
