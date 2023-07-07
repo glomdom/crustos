@@ -11,8 +11,9 @@
 
 testbegin
 
+readFAT
 readroot
 S" init.f" findindir
-FNAMESZ []>str S" INIT   FS " #s=
+fat16open fat16read '\' #eq
 
 testend
