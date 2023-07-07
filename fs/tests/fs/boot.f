@@ -15,8 +15,10 @@ testbegin
 
 readFAT
 readroot
+
+S" tests" findindir readdir
 S" fattest" findindir
-fat16open dup fat16getc 'T' #eq
+openfile dup fat16getc 'T' #eq
 dup $ff readN
 dup fat16getc 'f' #eq dup fat16getc 'o' #eq dup fat16getc 'o' #eq
 dup $fd readN
