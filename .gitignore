@@ -2,4 +2,5 @@
 
 /crust
 /fatfs
+/boot.f
 *.o

@@ -1,4 +1,5 @@
 TARGETS = crust
+BOOT_SRC = fs/xcomp/bootlo.f fs/fs/linux.f fs/xcomp/boothi.f
 
 all: $(TARGETS)
 
@@ -7,6 +8,10 @@ crust: crust.asm boot.f fatfs
 	@nasm -f elf32 crust.asm -o crust.o
 	@echo " LD       crust"
 	@ld -m elf_i386 crust.o -o $@
+
+boot.f: $(BOOT_SRC)
+	@echo " CAT      BOOT_SRC -> $@"
+	@cat $(BOOT_SRC) > $@
 
 fatfs: fs
 	@echo " DD       $@"
