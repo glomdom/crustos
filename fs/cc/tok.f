@@ -49,7 +49,7 @@ create _ 10 c, ," 09AZaz__$$"
 \ advance to the next non-whitespace and return the char encountered.
 \ if end of stream is reached, c is 0
 : tonws begin
-  _cc< dup EOF > while dup ws? while drop repeat
+  _cc< dup 0>= while dup ws? while drop repeat
     else drop 0 then ;
 
 : _writesym ( c3? c2? c1 len -- str )

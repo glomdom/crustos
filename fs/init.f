@@ -11,7 +11,7 @@ RAMDRVSECSZ to drvblksz
 fatfs( to ramdrv(
 ' ramdrv@ to (drv@)
 ' ramdrv! to (drv!)
-f<< lib/file.f
+f<< sys/file.f
 f<< lib/nfmt.f
 f<< lib/diag.f
 f<< sys/xhere.f

@@ -633,8 +633,8 @@ defword 'maybeword', 9, word_maybeword
 _word_loop1:
     call [inrd]
     pspop eax
-    cmp eax, 0x05               ; is EOF?
-    jc _word_eof
+    test eax, eax
+    js _word_eof
     cmp eax, 0x21               ; is whitespace?
     jc _word_loop1
     mov ebx, curword+1

@@ -26,7 +26,7 @@ run: crust
 	@stty -icanon -echo; ./crust; stty icanon echo
 
 .PHONY: test
-test: crust
+test: crust fatfs
 	@echo "f<< tests/all.f bye" | ./crust && echo "all tests passed" || (echo; exit 1)
 
 .PHONY: cloc

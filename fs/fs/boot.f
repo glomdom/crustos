@@ -134,8 +134,8 @@ create fcursors( FCursorSize FCURSORCNT * allot0
 
 : fat16open ( path -- fcursor ) findpath openfile ;
 
-: fat16getc ( fcursor -- c-or-0 )
-  dup FCUR_pos over FCUR_size = if drop 0 exit then
+: fat16getc ( fcursor -- c )
+  dup FCUR_pos over FCUR_size = if drop -1 exit then
   dup FCUR_pos+ ClusterSize mod over FCUR_buf( + c@
   over FCUR_pos ClusterSize mod not if
     over FCUR_cluster nextcluster

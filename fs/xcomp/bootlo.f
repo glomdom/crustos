@@ -62,8 +62,7 @@
 : =><= ( n l h -- f ) over - rot> ( h n l ) - >= ;
 
 \ Emitting
-$20 const SPC $0d const CR $0a const LF
-$08 const BS  $04 const EOF
+$20 const SPC $0d const CR $0a const LF $08 const BS
 
 : nl> CR emit LF emit ;
 : spc> SPC emit ;

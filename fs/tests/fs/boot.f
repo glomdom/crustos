@@ -24,7 +24,7 @@ dup $fd readN
 dup fat16getc 'b' #eq
 dup $dfc readN
 dup fat16getc 'E' #eq dup fat16getc 'O' #eq dup fat16getc 'F' #eq
-dup fat16getc 0 #eq
+dup fat16getc -1 #eq
 fat16close
 
 testend
