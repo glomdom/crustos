@@ -49,23 +49,27 @@ here value )FAT16
 \ filesystem can have more than BPB_RootEntCnt entries.
 create dirbuf( RootDirSectors BPB_BytsPerSec * allot
 here const )dirbuf
-create fnbuf FNAMESZ allot
+create fnbuf( FNAMESZ allot
+here const )fnbuf
 
 : upcase ( c -- c ) dup 'a' - 26 < if $df and then ;
+: fnbufclr fnbuf( FNAMESZ SPC fill ;
 
 \ We assume a 8.3 name - DO NOT call this with an inadequate name.
 : _tofnbuf ( fname -- )
-  A>r >A Ac@+ >r fnbuf FNAMESZ SPC fill fnbuf begin
-    Ac@+ dup '.' = if 2drop fnbuf 8 + else upcase swap c!+ then
+  A>r >A Ac@+ >r fnbufclr fnbuf( begin
+    Ac@+ dup '.' = if 2drop fnbuf( 8 + else upcase swap c!+ then
     next drop r>A ;
 
-\ Search in the directory that is currently loaded in dirbuf.
-\ Returns the address of the dir entry, aborts if not found.
-: findindir ( fname -- direntry ) _tofnbuf
+: _findindir ( -- direntry )
   dirbuf( begin
     dup )dirbuf < while
-    fnbuf over DIR_Name []= not while DIRENTRYSZ + repeat
+    fnbuf( over DIR_Name []= not while DIRENTRYSZ + repeat
     else abort" file not found" then ;
+
+\ Searches in the directory that is currently loaded in `dirbuf`
+\ Returns the address of the direntry entry, and aborts if it isn't found
+: findindir ( fname -- direntry ) _tofnbuf _findindir ;
 
 \ Make the current dir the root dir
 : readroot FirstRootDirSecNum RootDirSectors dirbuf( readsectors ;
@@ -88,35 +92,46 @@ create fnbuf FNAMESZ allot
     ClusterSize + swap nextcluster swap repeat
   2drop ;
 
+: findpath ( path -- direntry )
+  A>r fnbufclr fnbuf( >A c@+ >r readroot begin
+    c@+ dup emit case
+      '.' of = fnbuf( 8 + >A endof
+      '/' of = _findindir readdir fnbufclr fnbuf( >A endof
+      r@ upcase Ac!+ A> )fnbuf = if abort" filename too long" then
+    endcase
+  next drop
+  _findindir r>A ;
+
 \ File cursor
-\ 2b first cluster
+\ 2b first cluster ; 0 = free cursor
 \ 2b current cluster in buf
 \ 4b cur pos (offset from beginning of file)
 \ 4b file size
 \ Xb current cluster X=ClusterSize
-4 const FCURSORCNT \ maximum number of opened files
+4 const FCURSORCNT \ Maximum number of opened files
 : FCursorSize ClusterSize 12 + ;
 : FCUR_cluster0 ( fcur -- n ) w@ ;
 : FCUR_cluster ( fcur -- n ) 2 + w@ ;
 : FCUR_cluster! ( n fcur -- ) 2 + w! ;
 : FCUR_pos ( fcur -- n ) 4 + @ ;
-\ return pos and post-inc it
 : FCUR_pos+ ( fcur -- n ) 4 + dup @ 1 rot +! ;
 : FCUR_size ( fcur -- n ) 8 + @ ;
 : FCUR_buf( ( fcur -- a ) 12 + ;
 
-create fcursors( FCursorSize FCURSORCNT * allot
-here value )fcursor
-fcursors( value nextfcursor
+create fcursors( FCursorSize FCURSORCNT * allot0
+
+: findfreecursor ( -- fcursor )
+  FCURSORCNT >r fcursors( begin
+    dup FCUR_cluster0 not if r~ exit then FCursorSize + next
+  abort" out of file cursors" ;
 
 \ Opens the specified `direntry` into one of the free cursors and returns
 \ the cursor
 : openfile ( direntry -- fcursor )
-  nextfcursor )fcursor = if abort" out of file cursors!" then
-  dup DIR_Cluster dup nextfcursor FCUR_buf( readcluster
-  dup nextfcursor w! nextfcursor FCUR_cluster!
-  0 nextfcursor 4 + ! DIR_FileSize nextfcursor 8 + !
-  nextfcursor FCursorSize to+ nextfcursor ;
+  findfreecursor >r
+  dup DIR_Cluster dup r@ FCUR_buf( readcluster
+  dup r@ w! r@ FCUR_cluster!
+  0 r@ 4 + ! DIR_FileSize r@ 8 + ! r> ;
 
 : fat16getc ( fcursor -- c-or-0 )
   dup FCUR_pos over FCUR_size = if drop 0 exit then
@@ -128,3 +143,5 @@ fcursors( value nextfcursor
       rot 2dup FCUR_cluster!
       tuck FCUR_buf( readcluster swap then
   then nip ;
+
+: fat16close ( fcursor ) 0 swap w! ;
