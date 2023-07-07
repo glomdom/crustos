@@ -56,7 +56,7 @@ create fnbuf FNAMESZ allot
 \ We assume a 8.3 name - DO NOT call this with an inadequate name.
 : _tofnbuf ( fname -- )
   A>r >A Ac@+ >r fnbuf FNAMESZ SPC fill fnbuf begin
-    Ac@+ dup '.' = if 2drop fnbuf 8 + upcase swap c!+ then
+    Ac@+ dup '.' = if 2drop fnbuf 8 + else upcase swap c!+ then
     next drop r>A ;
 
 \ Search in the directory that is currently loaded in dirbuf.
@@ -70,9 +70,10 @@ create fnbuf FNAMESZ allot
 \ Make the current dir the root dir
 : readroot FirstRootDirSecNum RootDirSectors dirbuf( readsectors ;
 
+: endofclusters? ( cluster -- f ) $ffff = ;
+
 \ Get the cluster following this one
-: nextcluster ( cluster -- nextcluster )
-  abort" TODO" ;
+: nextcluster ( cluster -- nextcluster ) << FAT16( + w@ ;
 
 \ File cursor
 \ 2b first cluster
@@ -84,9 +85,11 @@ create fnbuf FNAMESZ allot
 : FCursorSize ClusterSize 12 + ;
 : FCUR_cluster0 ( fcur -- n ) w@ ;
 : FCUR_cluster ( fcur -- n ) 2 + w@ ;
+: FCUR_cluster! ( n fcur -- ) 2 + w! ;
 : FCUR_pos ( fcur -- n ) 4 + @ ;
 \ return pos and post-inc it
 : FCUR_pos+ ( fcur -- n ) 4 + dup @ 1 rot +! ;
+: FCUR_size ( fcur -- n ) 8 + @ ;
 : FCUR_buf( ( fcur -- a ) 12 + ;
 
 create fcursors( FCursorSize FCURSORCNT * allot
@@ -94,17 +97,21 @@ here value )fcursor
 fcursors( value nextfcursor
 
 : readcluster ( cluster dst -- )
-  swap FirstSectorOfCluster swap BPB_SecPerClus swap readsectors ;
-
+  over << BPB_BytsPerSec BPB_FATSz16 * >= if abort" cluster out of range" then
+  swap FirstSectorOfCluster ( dst sec ) swap BPB_SecPerClus swap readsectors ;
 : fat16open ( direntry -- fcursor )
   nextfcursor )fcursor = if abort" out of file cursors!" then
-  dup DIR_Cluster dup nextfcursor FCUR_buf( readcluster
-  dup nextfcursor w! nextfcursor 2 + w!
-  0 nextfcursor 4 + ! DIR_FileSize nextfcursor 8 + !
-  nextfcursor FCursorSize to+ nextfcursor ;
-
-: fat16read ( fcursor -- c )
-  dup FCUR_pos+ ClusterSize mod over FCUR_buf( + c@
-  over FCUR_pos ClusterSize mod not if
-    abort" TODO"
-  then nip ;
+  dup DIR_Cluster ( dirent cluster ) dup nextfcursor FCUR_buf( readcluster
+  ( dirent cluster ) dup nextfcursor w! nextfcursor FCUR_cluster! ( dirent )
+  0 nextfcursor 4 + ! DIR_FileSize nextfcursor 8 + ! ( )
+  nextfcursor FCursorSize to+ nextfcursor ( fcursor ) ;
+: fat16getc ( fcursor -- c-or-0 )
+  dup FCUR_pos over FCUR_size = if drop 0 exit then
+  dup FCUR_pos+ ClusterSize mod over FCUR_buf( + c@ ( fc c )
+  over FCUR_pos ClusterSize mod not if ( fc c ) \ end of cluster, read next
+    over FCUR_cluster nextcluster ( fc c cluster )
+    dup endofclusters? if drop else
+      dup 2 < if abort" cluster out of range" then
+      rot 2dup FCUR_cluster! ( c cluster fc )
+      tuck FCUR_buf( readcluster ( c fc ) swap then
+  then ( fc c ) nip ;

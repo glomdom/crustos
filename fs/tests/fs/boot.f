@@ -9,11 +9,20 @@
 ?f<< tests/harness.f
 ?f<< fs/boot.f
 
+: readN ( fcursor n -- ) >r begin dup fat16getc drop next drop ;
+
 testbegin
 
 readFAT
 readroot
-S" init.f" findindir
-fat16open fat16read '\' #eq
+S" fattest" findindir
+fat16open dup fat16getc 'T' #eq
+dup $ff readN
+dup fat16getc 'f' #eq dup fat16getc 'o' #eq dup fat16getc 'o' #eq
+dup $fd readN
+dup fat16getc 'b' #eq
+dup $dfc readN
+dup fat16getc 'E' #eq dup fat16getc 'O' #eq dup fat16getc 'F' #eq
+fat16getc 0 #eq
 
 testend
