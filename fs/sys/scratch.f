@@ -17,14 +17,9 @@ scratch( value scratch>
 : scratchallot ( n -- a )
   scratch> over + scratch) >= if scratch( to scratch> then
   scratch> swap to+ scratch> ( a ) ;
-: scratchallot0 ( n -- a ) dup scratchallot dup >r swap 0 fill r> ;
 
 : []>str ( a u -- str )
   dup 1+ scratchallot ( src u dst-1 ) >r dup r@ c!+ swap ( src dst u ) move r> ;
-
-\ Transforms `str` into a null-terminated one
-: str>zstr ( str -- zstr )
-  c@+ dup 1+ scratchallot0 dup >r swap move r> ;
 
 \ Open a scratch area for writing
 : scratch[ ( -- ) here to _here scratch> to here ;

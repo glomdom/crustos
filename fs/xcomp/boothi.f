@@ -5,9 +5,9 @@
 : f< ( -- c ) curfd fread fecho if dup emit then ;
 : fload ( fname -- )
   floaded here to floaded ,
-  dup c@ 1+ move, 0 c,
+  dup c@ 1+ move,
   curfd >r
-  floaded 5 + zfopen to curfd
+  floaded 4 + fopen to curfd
   to' in< @ >r ['] f< to in<
   begin maybeword ?dup if runword 0 else 1 then until
   r> to in< curfd fclose r> to curfd ;
