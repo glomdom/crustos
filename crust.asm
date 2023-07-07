@@ -5,7 +5,7 @@ BITS 32
 %define CELLSZ 4
 %define PS_SZ 0x1000
 %define RS_SZ 0x1000
-%define MEMSIZE 0x40000
+%define MEMSIZE 0xa0000
 %define SYSCALL_EXIT 1
 %define SYSCALL_READ 3
 %define SYSCALL_WRITE 4
