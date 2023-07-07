@@ -2,7 +2,7 @@
 0 value floaded \ address of the current loaded file structure
 0 value fecho
 
-: f< ( -- c ) curfd fread fecho if dup emit then ;
+: f< ( -- c ) curfd fgetc fecho if dup emit then ;
 : fload ( fname -- )
   floaded here to floaded ,
   dup c@ 1+ move,

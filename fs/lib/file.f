@@ -4,7 +4,7 @@
 \ This creates a `f<` reader with the file descriptor embedded in it. This
 \ allows for a straightforward override of input/output words.
 : [f<] ( curfd -- word )
-  scratch[ litn compile fread exit, ]scratch ;
+  scratch[ litn compile fgetc exit, ]scratch ;
 
 \ Autoloading
 
