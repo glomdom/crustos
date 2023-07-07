@@ -186,10 +186,11 @@ operands value 'curop
 
 : callargallot, ( bytes -- ) dup to callsz ebp i32 sub, ;
 
-: vmcall>op1, ( addr -- )
+: vmcall>op1, ( -- )
+  VM_CONSTANT optype = _assert
+  oparg call, VM_NONE optype!
   selop1 noop#
-  call,
-  VM_REGISTER optype! regallot r! [ebp] mov,
+  VM_REGISTER optype! regallot dup oparg! r! [ebp] mov,
   ebp 4 i32 add, 0 to callsz ;
 
 \ Code Generation - BinaryOps

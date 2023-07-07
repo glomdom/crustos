@@ -184,7 +184,7 @@ ASTIDCNT wordtbl gentbl ( node -- )
   dup ast.unit.find ?dup if
     nip dup nodeid AST_FUNCTION = _assert ast.func.address else
     find ?dup _assert then
-  vmcall>op1, ;
+  const>op vmcall>op1, ;
 
 : _ ( node -- ) gentbl over nodeid wexec ;
 current to gennode
