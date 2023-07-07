@@ -17,6 +17,9 @@ S" baz" list sfind -1 #eq
 'z' alnum? #
 '0' alnum? #
 
-
+S" foobar" S" foo" scontains #
+S" foobar" S" bar" scontains #
+S" foobar" S" oba" scontains #
+S" foobar" S" baz" scontains not #
 
 testend

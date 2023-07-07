@@ -7,6 +7,18 @@ $100 value STR_MAXSZ
 : ws? SPC <= ;
 : s) c@+ + ;
 
+: sappend ( c str -- ) tuck s) c! dup c@ 1+ swap c! ;
+
+\\ Checks if str1 contains all of str2 (is str2 a substring?)
+: scontains ( str1 str2 -- f )
+  >r c@+ begin
+    dup r@ c@ >= while
+    over r@ c@+ []= if
+      r> drop 2drop 1 exit
+    then
+    1- swap 1+ swap
+  repeat r> drop 2drop 0 ;
+
 : sfind -1 rot> begin
   rot 1+ rot>
   2dup s= if 2drop exit then
