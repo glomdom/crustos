@@ -1,5 +1,5 @@
 TARGETS = crust
-BOOT_SRC = fs/xcomp/bootlo.f fs/fs/linux.f fs/xcomp/boothi.f
+BOOT_SRC = fs/xcomp/bootlo.f fs/drv/ramdrive.f fs/xcomp/glue1.f fs/fs/boot.f fs/xcomp/glue2.f fs/xcomp/boothi.f
 
 all: $(TARGETS)
 

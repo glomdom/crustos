@@ -11,9 +11,8 @@
 \ by boot.f as well as the `drive` protocol, which is implemented by a driver
 \ that is inserted between boot.f and this unit.
 
-$18 const BPBSZ
-create bpb BPBSZ allot
-0 drv@ drvbuf( bpb BPBSZ move
+create bpb drvblksz allot
+0 bpb (drv@)
 
 : BPB_BytsPerSec bpb $0b + w@ ;
 : BPB_SecPerClus bpb $0d + c@ ;
@@ -94,7 +93,7 @@ here const )fnbuf
 
 : findpath ( path -- direntry )
   A>r fnbufclr fnbuf( >A c@+ >r readroot begin
-    c@+ dup emit case
+    c@+ case
       '.' of = fnbuf( 8 + >A endof
       '/' of = _findindir readdir fnbufclr fnbuf( >A endof
       r@ upcase Ac!+ A> )fnbuf = if abort" filename too long" then
@@ -108,7 +107,7 @@ here const )fnbuf
 \ 4b cur pos (offset from beginning of file)
 \ 4b file size
 \ Xb current cluster X=ClusterSize
-4 const FCURSORCNT \ Maximum number of opened files
+10 const FCURSORCNT \ Maximum number of opened files
 : FCursorSize ClusterSize 12 + ;
 : FCUR_cluster0 ( fcur -- n ) w@ ;
 : FCUR_cluster ( fcur -- n ) 2 + w@ ;
@@ -132,6 +131,8 @@ create fcursors( FCursorSize FCURSORCNT * allot0
   dup DIR_Cluster dup r@ FCUR_buf( readcluster
   dup r@ w! r@ FCUR_cluster!
   0 r@ 4 + ! DIR_FileSize r@ 8 + ! r> ;
+
+: fat16open ( path -- fcursor ) findpath openfile ;
 
 : fat16getc ( fcursor -- c-or-0 )
   dup FCUR_pos over FCUR_size = if drop 0 exit then

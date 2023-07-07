@@ -7,9 +7,8 @@ f<< sys/doc.f
 f<< lib/io.f
 f<< sys/scratch.f
 f<< sys/drive.f
-f<< drv/ramdrive.f
-fatfs( to ramdrv(
 RAMDRVSECSZ to drvblksz
+fatfs( to ramdrv(
 ' ramdrv@ to (drv@)
 ' ramdrv! to (drv!)
 f<< lib/file.f

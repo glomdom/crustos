@@ -9,7 +9,6 @@ BITS 32
 %define SYSCALL_EXIT 1
 %define SYSCALL_READ 3
 %define SYSCALL_WRITE 4
-%define SYSCALL_CHDIR 12
 
 %macro pspush 1
     sub ebp, CELLSZ
@@ -78,7 +77,6 @@ heremax:
 
 SECTION .data
 bootsrc: incbin "boot.f"
-rootfspath: db "fs", 0
 wnfstr: db " word not found"
 uflwstr: db "stack underflow"
 wordexpstr: db "word expected"
@@ -95,9 +93,6 @@ _start:
     mov dword [main], word_mainloop
     mov dword [inrd], word_bootrd
     mov dword [emit], word__emit
-    mov eax, SYSCALL_CHDIR
-    mov ebx, rootfspath
-    int 0x80
     jmp word_abort
 
 firstword 'bye', 3, word_bye
@@ -220,15 +215,6 @@ defword 'key', 3, word_key
     mov ecx, ebp
     mov edx, 1
     int 0x80
-    ret
-
-defword 'lnxcall', 7, word_lnxcall
-    pspop edx
-    pspop ecx
-    pspop ebx
-    pspop eax
-    int 0x80
-    pspush eax
     ret
 
 defword 'drop', 4, word_drop
