@@ -1,18 +1,17 @@
-\ Boot Filesystem Implementation
+\ The "low" part of a FAT12/FAT16 Filesystem Implementation
 
-\ This is a subset of FAT16. It is designed to be embedded
+\ This is a subset of FAT12/FAT16. It is designed to be embedded
 \ right after `boot.f` and provide the means to continue bootstrapping
 \ on.
 
-\ Its goal is to provide fopen and fread. Nothing more. The rest of the
-\ FAT16 implementation is in fs/fat16.f
+\ Its goal is to provide fopen, fclose and fread. Nothing more. The rest of the
+\ FAT12/FAT16 implementation is in fs/fat.f
 
 \ This unit has access to a very small set of words, that is, words implemented
-\ by boot.f as well as the `drive` protocol, which is implemented by a driver
-\ that is inserted between boot.f and this unit.
+\ by boot.fs as well as (drv@) and drvblksz from the "drive" protocol, which is
+\ implemented by a driver that is also inserted in the boot sequence.
 
-create bpb drvblksz allot
-0 bpb (drv@)
+create bpb 0 here (drv@) $18 allot
 
 : BPB_BytsPerSec bpb $0b + w@ ;
 : BPB_SecPerClus bpb $0d + c@ ;
@@ -27,15 +26,17 @@ create bpb drvblksz allot
 : FirstSectorOfCluster 1- 1- BPB_SecPerClus * FirstDataSector + ;
 : FirstRootDirSecNum BPB_RsvdSecCnt BPB_NumFATs BPB_FATSz16 * + ;
 : ClusterSize BPB_SecPerClus BPB_BytsPerSec * ;
+: DataSec BPB_TotSec16 BPB_FATSz16 BPB_NumFATs * BPB_RsvdSecCnt + RootDirSectors + - ;
+: CountOfClusters DataSec BPB_SecPerClus / ;
+: FAT12? CountOfClusters 4085 < ;
 
 \ Read multiple sectors in buf
 : readsectors ( sec u buf -- )
   A>r swap >r swap >A begin
     A> over (drv@) A+ drvblksz + next drop r>A ;
 
-create FAT16( BPB_BytsPerSec BPB_FATSz16 * allot
-here value )FAT16
-: readFAT BPB_RsvdSecCnt BPB_FATSz16 FAT16( readsectors ;
+create FAT( BPB_BytsPerSec BPB_FATSz16 * allot
+: readFAT BPB_RsvdSecCnt BPB_FATSz16 FAT( readsectors ;
 
 32 const DIRENTRYSZ
 11 const FNAMESZ
@@ -73,10 +74,15 @@ here const )fnbuf
 \ Make the current dir the root dir
 : readroot FirstRootDirSecNum RootDirSectors dirbuf( readsectors ;
 
-: EOC? ( cluster -- f ) $fff8 and $fff8 = ;
+: EOC? ( cluster -- f ) FAT12? if $ff8 else $fff8 then tuck and = ;
 
 \ Get the cluster following this one
-: nextcluster ( cluster -- nextcluster ) << FAT16( + w@ ;
+: nextcluster ( cluster -- nextcluster )
+  FAT12? if
+    dup dup >> +
+    FAT( + w@ swap 1 and if 4 rshift else $fff and then
+  else
+    << FAT( + w@ then ;
 
 : readcluster ( cluster dst -- )
   over << BPB_BytsPerSec BPB_FATSz16 * >= if abort" cluster out of range" then

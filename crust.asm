@@ -761,6 +761,7 @@ defword '[]=', 3, word_rangeeq
     pspush eax
     ret
 
+; ( str -- word-or-0 )
 defword 'find', 4, word_find
     mov esi, [ebp]
     xor ecx, ecx
@@ -780,7 +781,6 @@ _find_loop:
     repz cmpsb
     jnz _find_skip2
     mov [ebp], edx
-    pspush 1
     ret
 _find_skip2:
     mov cl, al
@@ -795,8 +795,7 @@ _find_skip1:
 defword "'", 1, word_apos
     call word_word
     call word_find
-    pspop eax
-    test eax, eax
+    test dword [ebp], -1
     jz word_wnf
     ret
 
@@ -828,8 +827,7 @@ _xtcomp_loop:
 _xtcomp_notlit:
     pspush curword
     call word_find
-    pspop eax
-    test eax, eax
+    test dword [ebp], -1
     jz word_wnf
     mov eax, [ebp]
     dec eax
@@ -860,8 +858,7 @@ defword 'runword', 7, word_runword
     jnz word_noop
     pspush curword
     call word_find
-    pspop eax
-    test eax, eax
+    test dword [ebp], -1
     jz word_wnf
     call word_execute
     jmp word_stackcond

@@ -1,5 +1,5 @@
 TARGETS = crust
-BOOT_SRC = fs/xcomp/bootlo.f fs/drv/ramdrive.f fs/xcomp/glue1.f fs/fs/boot.f fs/xcomp/glue2.f fs/xcomp/boothi.f
+BOOT_SRC = fs/xcomp/bootlo.f fs/drv/ramdrive.f fs/xcomp/glue1.f fs/fs/fatlo.f fs/xcomp/glue2.f fs/xcomp/boothi.f
 
 all: $(TARGETS)
 
@@ -15,9 +15,9 @@ boot.f: $(BOOT_SRC)
 
 fatfs: fs
 	@echo " DD       $@"
-	@dd if=/dev/zero of=$@ bs=4M count=1 status=none
+	@dd if=/dev/zero of=$@ bs=1M count=1 status=none
 	@echo " MFORMAT  $@"
-	@mformat -c 1 -d 1 -i $@ ::
+	@mformat -M 512 -d 1 -i $@ ::
 	@echo " MCOPY    fs/* -> $@"
 	@mcopy -sQ -i $@ fs/* ::
 

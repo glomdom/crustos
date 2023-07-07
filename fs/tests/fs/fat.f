@@ -7,7 +7,7 @@
 \ 4. it has a 512 sector size
 
 ?f<< tests/harness.f
-?f<< fs/boot.f
+?f<< fs/fatlo.f
 
 : readN ( fcursor n -- ) >r begin dup fat16getc drop next drop ;
 

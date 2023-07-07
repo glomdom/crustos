@@ -1,6 +1,3 @@
-: = - not ;
-: 0< <<c nip ;
-
 : immediate current 1- dup c@ $80 or swap c! ;
 : ['] ' litn ; immediate
 : to ['] ! [to] ;
@@ -19,7 +16,7 @@
 : code word entry ;
 : create code compile (cell) ;
 : value code compile (val) , ;
-
+: = - not ;
 : \ begin in< $0a = until ; immediate
 
 : ( begin
@@ -49,6 +46,7 @@
 
 \ Arithmetic
 : > swap < ;
+: 0< <<c nip ;
 : 0>= 0< not ;
 : >= < not ;
 : <= > not ;

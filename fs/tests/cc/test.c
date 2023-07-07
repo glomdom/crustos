@@ -106,3 +106,12 @@ int global2[3] = {4, 5, 6};
 int global() {
     return global1;
 }
+
+int sysword(int a, int b) {
+    return max(a, b);
+}
+
+// TODO: use stype()
+int helloworld() {
+    return "Hello, World!";
+}

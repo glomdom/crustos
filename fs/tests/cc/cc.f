@@ -27,5 +27,7 @@ cnoop scnt 0 #eq
 42 ptrari 46 #eq
 array 52 #eq
 global 1234 #eq
+42 142 sysword 142 #eq
+helloworld S" Hello, World!" #s=
 
 testend

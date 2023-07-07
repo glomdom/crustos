@@ -19,9 +19,9 @@
 \ with a symbol that is also a 1 char symbol and all 3 chars symbols begin with
 \ 2 chars that are also a 2 chars symbol.
 \ list of 1 char symbols
-create symbols1 ," +-*/~&<>=[](){}.%^?:;,"
+create symbols1 ," +-*/~&<>=[](){}.%^?:;," '"' c,
 
-: isSym1? ( c -- f ) symbols1 22 [c]? 0>= ;
+: isSym1? ( c -- f ) symbols1 23 [c]? 0>= ;
 
 \ list of 2 chars symbols
 create symbols2 ," <=>===!=&&||++---><<>>+=-=*=/=%=&=^=|=/**///"

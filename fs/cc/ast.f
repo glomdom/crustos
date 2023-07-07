@@ -38,13 +38,13 @@ create bopsprectbl  1 c, 1 c, 0 c, 0 c, 2 c, 2 c, 2 c, 2 c,
 4 const AST_CONSTANT
 5 const AST_STATEMENTS
 6 const AST_ARGSPECS
-7 const AST_LVALUE
+7 const AST_IDENT
 8 const AST_UNARYOP
 9 const AST_POSTFIXOP
 10 const AST_BINARYOP
 11 const AST_LIST
 12 const AST_IF
-\ 13 unused
+13 const AST_STRLIT
 14 const AST_FUNCALL
 
 \ It's important that decl.name and func.name have the same offset.
@@ -62,11 +62,12 @@ NODESZ      ufield ast.lvalue.name
 NODESZ      ufield ast.uop.opid
 NODESZ      ufield ast.pop.opid
 NODESZ      ufield ast.bop.opid
+NODESZ     'ufield ast.strlit.value
 NODESZ      ufield ast.funcall.funcname
 
 ASTIDCNT stringlist astidnames
 "declare" "unit" "function" "return" "constant" "stmts" "args" "lvalue"
-"unaryop" "postop" "binop" "list" "if" "_" "call"
+"unaryop" "postop" "binop" "list" "if" "str" "call"
 
 0 value curunit
 
@@ -128,9 +129,9 @@ ASTIDCNT wordtbl astdatatbl ( node -- node )
 :w ( UnaryOp ) _[ dup ast.uop.opid uoptoken stype _] ;
 :w ( PostfixOp ) _[ dup ast.pop.opid poptoken stype _] ;
 :w ( BinaryOp ) _[ dup ast.bop.opid boptoken stype _] ;
-'w noop ( Unused )
+'w noop ( List )
 'w noop ( If )
-'w noop ( Unused )
+:w ( StrLit ) _[ dup ast.strlit.value stype _] ;
 :w ( FunCall ) _[ dup ast.funcall.funcname stype _] ;
 
 : printast ( node -- )
@@ -145,7 +146,7 @@ ASTIDCNT wordtbl astdatatbl ( node -- node )
 : newnode ( parent nodeid -- newnode )
   createnode ( parent node ) dup rot addnode ( node ) ;
 
-: _err ( -- ) abort" parsing error" ;
+: _err ( -- ) abort" ast error" ;
 : _assert ( f -- ) not if _err then ;
 
 : isType? ( tok -- f ) S" int" s= ;
@@ -156,8 +157,9 @@ ASTIDCNT wordtbl astdatatbl ( node -- node )
   c@+ >r begin ( a )
     c@+ identifier? not if r~ drop 0 exit then next drop 1 ;
 : expectIdent ( tok -- tok ) dup isIdent? _assert ;
-: expectChar ( tok c -- )
-  over 1+ c@ = _assert dup c@ 1 = _assert drop ;
+: isChar? ( tok c -- f ) over 1+ c@ = swap c@ 1 = and ;
+: isChar?^ ( c tok -- f ) swap isChar? ;        \ special case for "case..of"
+: expectChar ( tok c -- ) isChar? _assert ;
 : read; ( -- ) nextt ';' expectChar ;
 
 \ Parse Words
@@ -165,26 +167,26 @@ ASTIDCNT wordtbl astdatatbl ( node -- node )
 alias noop parseExpression ( tok -- node )
 
 : parseList
-  AST_LIST createnode nextt dup S" }" s= if drop exit then
+  AST_LIST createnode nextt dup '}' isChar? if drop exit then
   begin
     case
       of isIdent?
-        AST_LVALUE createnode swap , over addnode endof
+        AST_IDENT createnode swap , over addnode endof
       of parse
         AST_CONSTANT createnode swap , over addnode endof
       _err
     endcase
 
-    nextt
-    case
-      S" }" of s= r~ exit endof
-      S" ," of s= endof
+    nextt case
+      '}' of isChar?^ r~ exit endof
+      ',' of isChar?^ endof
+      _err
     endcase
 
   nextt again ;
 
-: parsePostfixOp ( tok lvnode -- node )
-  over S" [" s= if
+: parsePostfixOp ( tok inode -- node )
+  over '[' isChar? if
     nip AST_BINARYOP createnode 0 ,
     tuck addnode
     AST_CONSTANT createnode nextt parse _assert ,
@@ -203,22 +205,28 @@ alias noop parseExpression ( tok -- node )
 \ 2. an lvalue
 \ 3. a unaryop/postfixop containing a factor
 \ 4. a function call
+\ 5. an expression inside parenthesis
+\ 6. a string literal
 : parseFactor ( tok -- node-or-0 )
   case
-  S" (" of s= ( )
+  '(' of isChar?^
     nextt parseExpression nextt ')' expectChar endof
+  '"' of isChar?^
+    AST_STRLIT createnode 0 c, 0 begin
+      _cc< dup '"' = not while c, 1+ repeat
+    drop over NODESZ + c! endof
   of uopid ( opid )
-    AST_UNARYOP createnode swap , ( opnode )
-    nextt parseFactor ?dup _assert over addnode ( opnode ) endof
-  of isIdent? ( )
-    r@ nextt ( prevtok newtok ) dup S" (" s= if                   \ FunCall
-      drop AST_FUNCALL createnode swap , begin ( node )
-        nextt dup parseFactor ?dup while \ an argument
+    AST_UNARYOP createnode swap ,
+    nextt parseFactor ?dup _assert over addnode endof
+  of isIdent?
+    r@ nextt dup S" (" s= if
+      drop AST_FUNCALL createnode swap , begin
+        nextt dup parseFactor ?dup while
         nip over addnode
         nextt dup S" ," s= if drop else to nexttputback then
-      repeat ( tok ) ')' expectChar
+      repeat ')' expectChar
     else
-      swap AST_LVALUE createnode swap , parsePostfixOp
+      swap AST_IDENT createnode swap , parsePostfixOp
     then
   endof
   r@ parse if AST_CONSTANT createnode swap , else 0 then

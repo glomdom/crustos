@@ -3,7 +3,8 @@
 
 \ Code generation
 
-: _err ( node -- ) printast abort"  unexpected node" ;
+: _err ( -- ) abort" gen error" ;
+: _assert ( f -- ) not if _err then ;
 
 alias noop gennode
 
@@ -11,7 +12,7 @@ alias noop gennode
   firstchild ?dup if begin dup gennode nextsibling ?dup not until then ;
 
 : spit A>r >r >A begin Ac@+ .x1 next r>A ;
-: lv>decl
+: lv>decl ( inode -- dnode )
   dup ast.lvalue.name dup rot AST_FUNCTION parentnodeid
   ast.func.finddecl ?dup not if
     ast.unit.find dup _assert else
@@ -26,8 +27,8 @@ alias noop gennode
   endcase ;
 
 \\ Return the "pointer arithmetic size" of "node"
-: node*arisz
-  dup nodeid AST_LVALUE = if
+: node*arisz ( node -- n )
+  dup nodeid AST_IDENT = if
     lv>decl dup ast.decl.type
     swap ast.decl.nbelem 1 > if type*lvl+ then *ariunitsz else
     drop 1 then ;
@@ -170,15 +171,20 @@ ASTIDCNT wordtbl gentbl ( node -- )
   nextsibling ?dup if
     vmjmp, rot vmjmp!
     swap gennode then vmjmp! ;
-'w _err ( Unused )
+:w ( StrLit )
+  vmjmp, here
+  rot ast.strlit.value dup c@
+  1+ move, const>op vmjmp! ;
 :w ( FunCall )
   dup childcount 4 * callargallot,
   dup firstchild ?dup if -4 swap begin
     dup selop1 gennode swap dup selop2 sf+>op op1<>op2 vmmov, ops$
     4 - swap nextsibling ?dup not until drop then
-  ast.funcall.funcname ast.unit.find
-  dup _assert dup nodeid AST_FUNCTION = _assert
-  ast.func.address vmcall>op1, ;
+  ast.funcall.funcname
+  dup ast.unit.find ?dup if
+    nip dup nodeid AST_FUNCTION = _assert ast.func.address else
+    find ?dup _assert then
+  vmcall>op1, ;
 
 : _ ( node -- ) gentbl over nodeid wexec ;
 current to gennode
