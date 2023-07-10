@@ -525,7 +525,7 @@ defword 'litn', 4, word_litn
     call word_movewrite
     jmp word_write
 
-defword 'call,', 5, word_callwrite
+defword 'execute,', 8, word_executewrite
     pspush 0xe8
     call word_cwrite
     mov eax, [ebp]
@@ -834,7 +834,7 @@ _xtcomp_notlit:
     mov bl, [eax]
     and bl, 0x80
     jnz _xtcomp_imm
-    call word_callwrite
+    call word_executewrite
     jmp _xtcomp_loop
 _xtcomp_imm:
     call word_execute

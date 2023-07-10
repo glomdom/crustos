@@ -188,7 +188,7 @@ operands value 'curop
 
 : vmcall>op1, ( -- )
   VM_CONSTANT optype = _assert
-  oparg call, VM_NONE optype!
+  oparg execute, VM_NONE optype!
   selop1 noop#
   VM_REGISTER optype! regallot dup oparg! r! [ebp] mov,
   ebp 4 i32 add, 0 to callsz ;

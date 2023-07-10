@@ -4,7 +4,7 @@
 : to+ ['] +! [to] ;
 : to' ['] noop [to] ;
 
-: compile ' litn ['] call, call, ; immediate
+: compile ' litn ['] execute, execute, ; immediate
 : if compile (?br) here 4 allot ; immediate
 : then here swap ! ; immediate
 : else compile (br) here 4 allot here rot ! ; immediate
@@ -25,7 +25,7 @@
   again ; immediate
 
 \ Compiling Words
-: [compile] ' call, ; immediate
+: [compile] ' execute, ; immediate
 : const code litn exit, ;
 4 const CELLSZ
 : alias ' code compile (alias) , ;
@@ -92,7 +92,7 @@ $20 const SPC $0d const CR $0a const LF $08 const BS
 \ NOTE: if you want to access your reference value in the final "else", you
 \ need to use "r@".
 : case ( -- then-stopgap ) 0 compile >r ; immediate
-: of ( -- jump-addr ) compile r@ ' call, [compile] if ; immediate
+: of ( -- jump-addr ) compile r@ ' execute, [compile] if ; immediate
 alias else endof immediate
 : endcase ( then-stopgap jump1? jump2? ... jumpn? -- )
   ?dup if begin [compile] then ?dup not until then compile r~ ; immediate
