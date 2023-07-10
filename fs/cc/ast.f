@@ -185,10 +185,8 @@ alias noop parseExpression ( tok -- node )
 
   nextt again ;
 
-alias noop parseFactor
-
-: parsePostfixOp ( tok inode -- node )
-  swap case
+: parsePostfixOp ( inode -- node )
+  nextt case
     '[' of isChar?^
       AST_BINARYOP createnode 0 ,
       tuck addnode
@@ -201,10 +199,10 @@ alias noop parseFactor
 
     '(' of isChar?^
       AST_FUNCALL createnode tuck addnode begin
-        nextt dup parseFactor ?dup while
-        nip over addnode
-        nextt dup S" ," s= if drop else to nexttputback then
-      repeat ')' expectChar
+        nextt dup ')' isChar? not while
+        parseExpression over addnode
+        nextt dup ',' isChar? if drop else to nexttputback then
+      repeat drop
     endof
 
     r@ popid if
@@ -220,7 +218,7 @@ alias noop parseFactor
 \ 4. a function call
 \ 5. an expression inside parenthesis
 \ 6. a string literal
-: _ ( tok -- node-or-0 )    \ parseFactor
+: parseFactor ( tok -- node )
   case
     '(' of isChar?^
       nextt parseExpression nextt ')' expectChar
@@ -234,30 +232,28 @@ alias noop parseFactor
 
     of uopid
       AST_UNARYOP createnode swap ,
-      nextt parseFactor ?dup _assert over addnode
+      nextt parseFactor over addnode
     endof
 
     of isIdent?
-      AST_IDENT createnode r@ , nextt swap parsePostfixOp
+      AST_IDENT createnode r@ , parsePostfixOp
     endof
 
-    r@ parse if AST_CONSTANT createnode swap , else 0 then
+    r@ parse if AST_CONSTANT createnode swap , else _err then
   endcase ;
-
-current to parseFactor
 
 \ An expression can be 2 things:
 \ 1. a factor
 \ 2. a binaryop containing two expressions
 : _ ( tok -- exprnode ) ( parseExpression )
-  parseFactor ?dup _assert nextt ( factor nexttok )
+  parseFactor nextt ( factor nexttok )
   dup bopid if ( factor tok binop )
     nip ( factor binop ) AST_BINARYOP createnode swap , ( factor node )
     tuck addnode nextt ( binnode tok )
 
     \ consume tokens until binops stop coming
     begin ( bn tok )
-      parseFactor ?dup _assert nextt ( bn factor tok )
+      parseFactor nextt ( bn factor tok )
       dup bopid while ( bn fn tok bopid )
       nip AST_BINARYOP createnode swap , ( bn1 fn1 bn2 )
 
