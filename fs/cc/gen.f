@@ -12,11 +12,10 @@ alias noop gennode
   firstchild ?dup if begin dup gennode nextsibling ?dup not until then ;
 
 : spit A>r >r >A begin Ac@+ .x1 next r>A ;
-: lv>decl ( inode -- dnode )
-  dup ast.lvalue.name dup rot AST_FUNCTION parentnodeid
+: lv>decl ( inode -- dnode-or-0 )
+  dup ast.ident.name dup rot AST_FUNCTION parentnodeid
   ast.func.finddecl ?dup not if
-    ast.unit.find dup _assert else
-    nip then ;
+    ast.unit.find else nip then ;
 
 \\ Multiply the value of "node" by a factor of "n"
 \\ FIXME: doesnt support lvalues and expressions
@@ -29,7 +28,7 @@ alias noop gennode
 \\ Return the "pointer arithmetic size" of "node"
 : node*arisz ( node -- n )
   dup nodeid AST_IDENT = if
-    lv>decl dup ast.decl.type
+    lv>decl ?dup _assert dup ast.decl.type
     swap ast.decl.nbelem 1 > if type*lvl+ then *ariunitsz else
     drop 1 then ;
 
@@ -134,8 +133,10 @@ ASTIDCNT wordtbl gentbl ( node -- )
 :w ( Statements )
   firstchild ?dup if begin dup gennode ops$ nextsibling ?dup not until then ;
 'w genchildren ( ArgSpec )
-:w ( LValue )
-  lv>decl decl>op ;
+:w ( Ident )
+  dup lv>decl ?dup if
+    nip decl>op else
+    ast.ident.name find ?dup _assert mem>op then ;
 :w ( UnaryOp )
   _debug if ." unaryop: " dup printast nl> .ops then
   dup genchildren
@@ -176,15 +177,13 @@ ASTIDCNT wordtbl gentbl ( node -- )
   rot ast.strlit.value dup c@
   1+ move, const>op vmjmp! ;
 :w ( FunCall )
-  dup childcount 4 * callargallot,
-  dup firstchild ?dup if -4 swap begin
+  dup childcount 1- 4 * callargallot,
+  dup firstchild nextsibling ?dup if -4 swap begin
     dup selop1 gennode swap dup selop2 sf+>op op1<>op2 vmmov, ops$
     4 - swap nextsibling ?dup not until drop then
-  ast.funcall.funcname
-  dup ast.unit.find ?dup if
-    nip dup nodeid AST_FUNCTION = _assert ast.func.address else
-    find ?dup _assert then
-  const>op vmcall>op1, ;
+  
+  firstchild gennode
+  vmcall>op1, ;
 
 : _ ( node -- ) gentbl over nodeid wexec ;
 current to gennode

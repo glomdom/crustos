@@ -184,10 +184,10 @@ operands value 'curop
   optype if [ebp] opAsm mov, then
   ret, ;
 
-: callargallot, ( bytes -- ) dup to callsz ebp i32 sub, ;
+: callargallot, ( bytes -- ) dup to callsz ?dup if ebp i32 sub, then ;
 
 : vmcall>op1, ( -- )
-  VM_CONSTANT optype = _assert
+  VM_*CONSTANT optype = _assert
   oparg execute, VM_NONE optype!
   selop1 noop#
   VM_REGISTER optype! regallot dup oparg! r! [ebp] mov,
