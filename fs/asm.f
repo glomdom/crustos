@@ -80,11 +80,16 @@
 : op ( opcode -- ) doer c, does> c@ inh, ;
 $c3 op ret,
 
-\ Relative Jumps
+\ Conditional Jumps
 : op ( opcode -- ) doer , does> @ op, , ;
-$00e9 op jmp,
 $0f84 op jz,
 $0f85 op jnz,
+
+\ JMP and CALL
+: op ( opcode -- ) doer c, c, does>
+  prefix, tgt 0< if 1+ c@ op, here - 4 - , else c@ $ff modrm1, then ;
+$e9 4 op jmp,
+$e8 2 op call,
 
 \ Single Operand
 : op ( reg opcode -- ) doer , c, does>

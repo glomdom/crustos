@@ -5,21 +5,29 @@
 
 testbegin
 
-code foo
+code foo1
   eax 42 i32 mov,
   ebp 4 i32 sub,
   [ebp] eax mov,
   ret,
 
-foo 42 #eq
+foo1 42 #eq
 
 here 1234 , ( a )
-code foo
+code foo2
   ebx [i32] mov,
   ebp 4 i32 sub,
   [ebp] ebx mov,
   ret,
 
-foo 1234 #eq
+foo2 1234 #eq
+
+code foo3
+  ' foo1 call,
+  eax ' foo1 i32 mov,
+  eax call,
+  ret,
+
+foo3 42 #eq 42 #eq
 
 testend
