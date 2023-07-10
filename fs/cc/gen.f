@@ -177,13 +177,18 @@ ASTIDCNT wordtbl gentbl ( node -- )
   rot ast.strlit.value dup c@
   1+ move, const>op vmjmp! ;
 :w ( FunCall )
+  \ Resolve the address node
+  dup firstchild gennode
+  oppush rot
+
+  \ Pass the arguments
   dup childcount 1- 4 * callargallot,
-  dup firstchild nextsibling ?dup if -4 swap begin
-    dup selop1 gennode swap dup selop2 sf+>op op1<>op2 vmmov, ops$
+  firstchild nextsibling ?dup if -4 swap begin
+    dup selop1 gennode swap dup selop2 sf+>op op1<>op2 vmmov, selop1 opdeinit
     4 - swap nextsibling ?dup not until drop then
   
-  firstchild gennode
-  vmcall>op1, ;
+  \ Call
+  oppop vmcall>op, ;
 
 : _ ( node -- ) gentbl over nodeid wexec ;
 current to gennode

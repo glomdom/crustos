@@ -185,7 +185,9 @@ alias noop parseExpression ( tok -- node )
 
   nextt again ;
 
-: parsePostfixOp ( inode -- node )
+\ Parses, if possible, a postfix operator. If none, it's a noop.
+\ We parse postfix args as long as there are any.
+: parsePostfixOp ( node -- node )
   nextt case
     '[' of isChar?^
       AST_BINARYOP createnode 0 ,
@@ -194,7 +196,7 @@ alias noop parseExpression ( tok -- node )
       nextt ']' expectChar
       over addnode
       AST_UNARYOP createnode 4 ,
-      tuck addnode
+      tuck addnode parsePostfixOp
     endof
 
     '(' of isChar?^
@@ -202,12 +204,12 @@ alias noop parseExpression ( tok -- node )
         nextt dup ')' isChar? not while
         parseExpression over addnode
         nextt dup ',' isChar? if drop else to nexttputback then
-      repeat drop
+      repeat drop parsePostfixOp
     endof
 
     r@ popid if
       AST_POSTFIXOP createnode swap ,
-      tuck addnode
+      tuck addnode parsePostfixOp
     else r@ to nexttputback then
   endcase ;
 

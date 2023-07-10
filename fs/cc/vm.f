@@ -108,16 +108,19 @@ operands value 'curop
   _err endcase ;
 
 \ Force current operand to be copied to a register
+: _ regallot dup r! opAsm mov, oparg! ;
 : op>reg optype
   case
-    VM_NONE of = _err endof
+    VM_CONSTANT of = _ VM_REGISTER optype! endof
+    VM_*CONSTANT of = _ VM_REGISTER optype! endof
     VM_REGISTER of = endof
     VM_*REGISTER of = endof
     VM_STACKFRAME of =
       regallot dup r! ebp mov,
       opsf+ if dup r! opsf+ i32 add, then
       oparg! VM_REGISTER optype! endof
-    regallot dup r! opAsm mov, oparg! VM_REGISTER optype!
+    VM_*STACKFRAME of = _ VM_REGISTER optype! endof
+    _err
   endcase ;
 
 \ Resolve any referencing into a "simple" result. A VM_STACKFRAME goes into a
@@ -186,10 +189,10 @@ operands value 'curop
 
 : callargallot, ( bytes -- ) dup to callsz ?dup if ebp i32 sub, then ;
 
-: vmcall>op1, ( -- )
-  VM_*CONSTANT optype = _assert
-  oparg call, VM_NONE optype!
-  selop1 noop#
+\ Call the address in current op and put the result of that call in `op`.
+: vmcall>op, ( -- )
+  VM_*CONSTANT optype = if oparg VM_NONE optype! else opAsm then
+  call, opdeinit
   VM_REGISTER optype! regallot dup oparg! r! [ebp] mov,
   ebp 4 i32 add, 0 to callsz ;
 

@@ -115,3 +115,8 @@ int sysword(int a, int b) {
 int helloworld() {
     return "Hello, World!";
 }
+
+// lets begin calling the crust words!!
+int isinrange(int n, int l, int h) {
+    return find("=><=")(h, l, n);
+}
