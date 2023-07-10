@@ -111,25 +111,29 @@ ASTIDCNT wordtbl gentbl ( node -- )
       endof
     endcase drop
   else
-    dup firstchild ?dup if
+    dup >r AST_FUNCTION parentnodeid dup ast.func.cursf
+    r@ ast.decl.totsize -
+    dup rot to ast.func.cursf
+    r@ to ast.decl.sfoff
+    r@ firstchild ?dup if
       selop1 gennode op1<>op2
-      selop1 decl>op vmmov,
-    else drop then
+      selop1 r@ decl>op vmmov,
+    then r~
   then ;
 
 'w genchildren ( Unit )
 :w ( Function )
   _debug if ." debug: " dup ast.func.name stype nl> then
   ops$
+  dup ast.func.sfsize over to ast.func.cursf
   dup ast.func.name entry
   here over to ast.func.address
   over ast.func.argsize over ast.func.sfsize over - vmprelude,
-  genchildren
+  dup genchildren
+  ast.func.cursf not _assert
   _debug if current here current - spit nl> then ;
-:w ( Return )
-  genchildren vmret, ;
-:w ( Constant )
-  ast.const.value const>op ;
+:w ( Return ) genchildren vmret, ;
+:w ( Constant ) ast.const.value const>op ;
 :w ( Statements )
   firstchild ?dup if begin dup gennode ops$ nextsibling ?dup not until then ;
 'w genchildren ( ArgSpec )

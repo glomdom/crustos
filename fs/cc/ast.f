@@ -57,6 +57,7 @@ NODESZ      ufield ast.func.name
 NODESZ 4 +  ufield ast.func.sfsize
 NODESZ 8 +  ufield ast.func.type
 NODESZ 12 + ufield ast.func.address
+NODESZ 16 + ufield ast.func.cursf       \ last sfoff computed
 NODESZ      ufield ast.const.value
 NODESZ      ufield ast.ident.name
 NODESZ      ufield ast.uop.opid
@@ -293,7 +294,7 @@ current to parseExpression
   expectIdent , ,
   nextt parseNbelem ,
   dup AST_FUNCTION parentnodeid ?dup _assert
-  dup ast.func.sfsize , over ast.decl.totsize swap to+ ast.func.sfsize ;
+  0 , over ast.decl.totsize swap to+ ast.func.sfsize ;
 
 : parseDeclareInit ( dnode tok -- node )
   dup S" =" s= not if ';' expectChar drop exit then
@@ -347,7 +348,8 @@ current to parseStatements
   parseType _assert parseType*
   expectIdent rot nextt case
     S" (" of s=
-      AST_FUNCTION newnode rot> , 0 , , 0 ( address ) ,
+      AST_FUNCTION newnode rot>
+      , 0 , , 0 , 0 ,
       dup parseArgSpecs parseStatements
     endof
 

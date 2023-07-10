@@ -35,6 +35,10 @@ int adder(int a, int b) {
     return a + b;
 }
 
+int subber(int a, int b) {
+    return a - b;
+}
+
 // arguments
 int plusone(int x) {
     return adder(1, x);
@@ -118,5 +122,5 @@ int helloworld() {
 
 // lets begin calling the crust words!!
 int isinrange(int n, int l, int h) {
-    return find("=><=")(h, l, n);
+    return find("=><=")(n, l, h);
 }
