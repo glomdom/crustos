@@ -15,7 +15,7 @@ boot.f: $(BOOT_SRC)
 
 fatfs: fs
 	@echo " DD       $@"
-	@dd if=/dev/zero of=$@ bs=4194304 count=1 &>/dev/null
+	@dd if=/dev/zero of=$@ bs=1M count=1 status=none
 	@echo " MFORMAT  $@"
 	@mformat -M 512 -d 1 -i $@ ::
 	@echo " MCOPY    fs/* -> $@"
@@ -35,5 +35,5 @@ cloc:
 
 .PHONY: clean
 clean:
-	@rm -f $(TARGETS) crust.o fatfs
+	@rm -f $(TARGETS) crust.o fatfs boot.f
 	@echo "cleaned crustOS"
