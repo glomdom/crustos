@@ -650,8 +650,11 @@ _word_loop2:
     call [inrd]
     pop ebx
     pspop eax
+    test eax, eax
+    js _word_stoploop2          ; EOF, but we just treat it as whitespace
     cmp eax, 0x21
     jnc _word_loop2
+_word_stoploop2:
     pop dword [toptr]
     sub ebx, curword+1
     mov [curword], bl
