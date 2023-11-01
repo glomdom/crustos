@@ -1,4 +1,4 @@
-\ Tests for fs/boot
+\ Tests for fs/fat
 
 \ These tests run on a few assumptions:
 \ 1. the boot fs is a FAT16 fs
@@ -9,21 +9,28 @@
 ?f<< tests/harness.f
 ?f<< fs/fatlo.f
 
-: readN ( fcursor n -- ) >r begin dup fat16getc drop next drop ;
+: readN ( fcursor n -- ) >r begin dup fatgetc drop next drop ;
 
 testbegin
 
-readroot
-
-S" tests/fattest" findpath
-openfile dup fat16getc 'T' #eq
+S" tests/fattest" fatfindpath
+openfile dup fatgetc 'T' #eq
 dup $ff readN
-dup fat16getc 'f' #eq dup fat16getc 'o' #eq dup fat16getc 'o' #eq
+dup fatgetc 'f' #eq dup fatgetc 'o' #eq dup fatgetc 'o' #eq
 dup $fd readN
-dup fat16getc 'b' #eq
+dup fatgetc 'b' #eq
 dup $dfc readN
-dup fat16getc 'E' #eq dup fat16getc 'O' #eq dup fat16getc 'F' #eq
-dup fat16getc -1 #eq
-fat16close
+dup fatgetc 'E' #eq dup fatgetc 'O' #eq dup fatgetc 'F' #eq
+dup fatgetc -1 #eq
+fatclose
+
+S" lib" fatchdir
+S" str.f" fatfindpath # \ found
+S" /lib/str.f" fatfindpath # \ found
+
+\ lets go back one
+S" .." fatchdir
+S" lib/str.f" fatfindpath # \ found
+S" /lib/str.f" fatfindpath # \ found
 
 testend
