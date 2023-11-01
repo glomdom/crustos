@@ -23,20 +23,45 @@ create bpb 0 here (drv@) $18 allot
 : RootDirSectors
   BPB_RootEntCnt 32 * BPB_BytsPerSec /mod swap if 1+ then ;
 : FirstDataSector BPB_RsvdSecCnt BPB_NumFATs BPB_FATSz16 * + RootDirSectors + ;
-: FirstSectorOfCluster 1- 1- BPB_SecPerClus * FirstDataSector + ;
+: FirstSectorOfCluster ( n -- sec )
+  dup << BPB_BytsPerSec BPB_FATSz16 * >= if abort" cluster out of range" then
+  1- 1- BPB_SecPerClus * FirstDataSector + ;
 : FirstRootDirSecNum BPB_RsvdSecCnt BPB_NumFATs BPB_FATSz16 * + ;
 : ClusterSize BPB_SecPerClus BPB_BytsPerSec * ;
 : DataSec BPB_TotSec16 BPB_FATSz16 BPB_NumFATs * BPB_RsvdSecCnt + RootDirSectors + - ;
 : CountOfClusters DataSec BPB_SecPerClus / ;
 : FAT12? CountOfClusters 4085 < ;
 
-\ Read multiple sectors in buf
-: readsectors ( sec u buf -- )
-  A>r swap >r swap >A begin
-    A> over (drv@) A+ drvblksz + next drop r>A ;
+create buf( BPB_BytsPerSec allot
+here const )buf
+0 value bufsec \ sector number of current buf
+0 value bufseccnt \ number of sectors ahead for sequential read
+0 value bufcluster \ cluster number of current buf
 
-create FAT( BPB_BytsPerSec BPB_FATSz16 * allot
-: readFAT BPB_RsvdSecCnt BPB_FATSz16 FAT( readsectors ;
+: readsector ( sec cnt -- ) to bufseccnt dup to bufsec buf( (drv@) ;
+
+: FAT12@ ( cluster -- entry )
+  dup dup >> + BPB_BytsPerSec /mod
+  BPB_RsvdSecCnt + 0 readsector
+  buf( + w@
+  swap 1 and if 4 rshift else $fff and then ;
+: FAT16@ ( cluster -- entry )
+  << BPB_BytsPerSec /mod
+  BPB_RsvdSecCnt + 0 readsector
+  buf( + w@ ;
+: FAT@ ( cluster -- entry )
+  FAT12? if FAT12@ else FAT16@ then ;
+
+: EOC? ( cluster -- f )
+  FAT12? if $ff8 else $fff8 then tuck and = ;
+
+: nextsector? ( -- f )
+  bufseccnt if
+    bufseccnt 1+ bufseccnt 1- readsector 1
+  else \ out of sector, try next cluster
+    bufcluster FAT@ dup EOC? if drop 0 else \ we have another cluster
+    dup to bufcluster FirstSectorOfCluster BPB_SecPerClus readsector 1
+  then then ;
 
 32 const DIRENTRYSZ
 11 const FNAMESZ
@@ -44,11 +69,6 @@ create FAT( BPB_BytsPerSec BPB_FATSz16 * allot
 : DIR_Cluster ( direntry -- cluster ) 26 + w@ ;
 : DIR_FileSize ( direntry -- sz ) 28 + @ ;
 
-\ A buffer where dir entries are copied before we search in them. It's big
-\ enough to hold the root dir entries. This means that no directory in the
-\ filesystem can have more than BPB_RootEntCnt entries.
-create dirbuf( RootDirSectors BPB_BytsPerSec * allot
-here const )dirbuf
 create fnbuf( FNAMESZ allot
 here const )fnbuf
 
@@ -61,41 +81,27 @@ here const )fnbuf
     Ac@+ dup '.' = if 2drop fnbuf( 8 + else upcase swap c!+ then
     next drop r>A ;
 
-: _findindir ( -- direntry )
-  dirbuf( begin
-    dup )dirbuf < while
+: _ ( -- direntry-or-0 )
+  buf( begin
+    dup )buf < while
     fnbuf( over DIR_Name []= not while DIRENTRYSZ + repeat
-    else abort" file not found" then ;
+    else drop 0 then ;
+: _findindir ( -- direntry )
+  begin
+    _ ?dup not while nextsector? not if abort" file not found" then
+  repeat ;
 
 \ Searches in the directory that is currently loaded in `dirbuf`
 \ Returns the address of the direntry entry, and aborts if it isn't found
 : findindir ( fname -- direntry ) _tofnbuf _findindir ;
 
-\ Make the current dir the root dir
-: readroot FirstRootDirSecNum RootDirSectors dirbuf( readsectors ;
-
-: EOC? ( cluster -- f ) FAT12? if $ff8 else $fff8 then tuck and = ;
-
-\ Get the cluster following this one
-: nextcluster ( cluster -- nextcluster )
-  FAT12? if
-    dup dup >> +
-    FAT( + w@ swap 1 and if 4 rshift else $fff and then
-  else
-    << FAT( + w@ then ;
-
-: readcluster ( cluster dst -- )
-  over << BPB_BytsPerSec BPB_FATSz16 * >= if abort" cluster out of range" then
-  swap FirstSectorOfCluster swap BPB_SecPerClus swap readsectors ;
+\ Make the current directory the root
+: readroot 1 to bufcluster FirstRootDirSecNum RootDirSectors readsector ;
 
 \ Read specified `direntry` in dirbuf(
 \ Errors if it has more entries than BPB_RootEntCnt
 : readdir ( direntry -- )
-  DIR_Cluster dirbuf( begin
-    over EOC? not while
-    2dup readcluster
-    ClusterSize + swap nextcluster swap repeat
-  2drop ;
+  DIR_Cluster dup to bufcluster FirstSectorOfCluster BPB_SecPerClus readsector ;
 
 : findpath ( path -- direntry )
   A>r fnbufclr fnbuf( >A c@+ >r readroot begin
@@ -130,6 +136,14 @@ create fcursors( FCursorSize FCURSORCNT * allot0
     dup FCUR_cluster0 not if r~ exit then FCursorSize + next
   abort" out of file cursors" ;
 
+\ Read multiple sectors in buf
+: readsectors ( sec u buf -- )
+  A>r swap >r swap >A begin
+    A> over (drv@) A+ drvblksz + next drop r>A ;
+
+: readcluster ( cluster dst -- )
+  swap FirstSectorOfCluster swap BPB_SecPerClus swap readsectors ;
+
 \ Opens the specified `direntry` into one of the free cursors and returns
 \ the cursor
 : openfile ( direntry -- fcursor )
@@ -144,7 +158,7 @@ create fcursors( FCursorSize FCURSORCNT * allot0
   dup FCUR_pos over FCUR_size = if drop -1 exit then
   dup FCUR_pos+ ClusterSize mod over FCUR_buf( + c@
   over FCUR_pos ClusterSize mod not if
-    over FCUR_cluster nextcluster
+    over FCUR_cluster FAT@
     dup EOC? if drop else
       dup 2 < if abort" cluster out of range" then
       rot 2dup FCUR_cluster!

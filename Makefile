@@ -27,7 +27,7 @@ run: crust
 
 .PHONY: test
 test: crust fatfs
-	@echo "f<< tests/all.f bye" | ./crust && echo "all tests passed" || (echo; exit 1)
+	echo "f<< tests/all.f bye" | ./crust && echo "all tests passed" || (echo; exit 1)
 
 .PHONY: cloc
 cloc:

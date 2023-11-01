@@ -13,7 +13,6 @@
 
 testbegin
 
-readFAT
 readroot
 
 S" tests/fattest" findpath
