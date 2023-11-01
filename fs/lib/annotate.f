@@ -1,3 +1,7 @@
+\ Annotations
+
+?f<< lib/dict.f
+
 : (annotate) ( w -- w' )
   current dup preventry to current >r
   dup preventry r@ preventry!

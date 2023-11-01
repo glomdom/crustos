@@ -1,17 +1,16 @@
+\ C compiler
+
 require sys/scratch.f
 require sys/xhere.f
 
 1 value _debug
 
-?f<< lib/str.f
-?f<< lib/wordtbl.f
-?f<< lib/xdict.f
-?f<< asm.f
-?f<< cc/io.f
-?f<< cc/vm.f
-?f<< cc/tok.f
-?f<< cc/type.f
-?f<< cc/tree.f
-?f<< cc/ast.f
 ?f<< cc/gen.f
-?f<< cc/cc1.f
+
+\ Compiles input coming from stdin and writes the result to here.
+\ Aborts on error.
+: cc1, ( -- )
+  xhere$ xhere[ parseast curunit _debug if dup printast nl> then ]xhere
+  gennode ;
+
+: cc1<< ( -- ) word fopen dup [f<] to stdin cc1, fclose ;

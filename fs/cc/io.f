@@ -1,5 +1,7 @@
 \ C Compiler I/O Words
 
+?f<< lib/io.f
+
 alias stdin cc<
 
 0 value putback

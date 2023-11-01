@@ -104,5 +104,10 @@ alias else endof immediate
   A- Ac@ = if A> r> - ( i ) else r~ -1 then r>A ;
 : s= ( s1 s2 -- f ) over c@ 1+ []= ;
 
+\ Autoloading
+0 value floaded \ address of the current "loaded file" structure
+: floaded, ( fname -- )
+  floaded here to floaded , ( fname ) dup c@ 1+ move, ;
+
 \ Doc Comment Placeholder
 alias \ \\

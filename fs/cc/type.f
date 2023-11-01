@@ -1,3 +1,8 @@
+\ C compiler types
+
+?f<< lib/str.f
+?f<< cc/tok.f
+
 4 stringlist typenames "void" "char" "short" "int"
 : typesigned? ( type -- flags ) 2 rshift 1 and ;
 : type*lvl ( type -- lvl ) 3 rshift 3 and ;

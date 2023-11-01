@@ -1,6 +1,8 @@
 \ C Compiler Tokenization
 \ Throughout the CC code, "tok" means a string, which represents a token.
 
+?f<< cc/io.f
+
 0 const TOK_KEYWORD
 1 const TOK_IDENTIFIER
 2 const TOK_CONSTANT

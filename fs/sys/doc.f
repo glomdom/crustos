@@ -1,3 +1,5 @@
+?f<< lib/annotate.f
+
 create doc-magic 2 c, 127 c, 'D' c,
 
 : _ doc-magic entry begin in< dup c, LF = until ;

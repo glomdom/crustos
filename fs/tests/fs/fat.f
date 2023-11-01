@@ -7,7 +7,7 @@
 \ 4. it has a 512 sector size
 
 ?f<< tests/harness.f
-?f<< fs/fatlo.f
+?f<< fs/fat.f
 
 : readN ( fcursor n -- ) >r begin dup fatgetc drop next drop ;
 
@@ -32,5 +32,9 @@ S" /lib/str.f" fatfindpath # \ found
 S" .." fatchdir
 S" lib/str.f" fatfindpath # \ found
 S" /lib/str.f" fatfindpath # \ found
+
+\ can we create new file?
+S" newfile" fatnewfile #
+S" /newfile" fatfindpath # \ yes we can
 
 testend

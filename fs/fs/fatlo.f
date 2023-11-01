@@ -8,10 +8,10 @@
 \ FAT12/FAT16 implementation is in fs/fat.f
 
 \ This unit has access to a very small set of words, that is, words implemented
-\ by boot.fs as well as (drv@) and drvblksz from the "drive" protocol, which is
+\ by boot.f as well as (drv@) and drvblksz from the "drive" protocol, which is
 \ implemented by a driver that is also inserted in the boot sequence.
 
-\ See fs/fat.fs for complete implementation details.
+\ See fs/fat.f for complete implementation details.
 
 create bpb 0 here (drv@) $18 allot
 
@@ -136,20 +136,19 @@ here const )fnbuf
 \ 4b file size
 \ Xb current cluster X=ClusterSize
 10 const FCURSORCNT \ Maximum number of opened files
-: FCursorSize ClusterSize 12 + ;
-: FCUR_cluster0 ( fcur -- n ) w@ ;
-: FCUR_cluster ( fcur -- n ) 2 + w@ ;
-: FCUR_cluster! ( n fcur -- ) 2 + w! ;
-: FCUR_pos ( fcur -- n ) 4 + @ ;
-: FCUR_pos+ ( fcur -- n ) 4 + dup @ 1 rot +! ;
-: FCUR_size ( fcur -- n ) 8 + @ ;
-: FCUR_buf( ( fcur -- a ) 12 + ;
+: FCursorSize ClusterSize 16 + ;
+: FCUR_cluster ( fcur -- n ) @ ;
+: FCUR_cluster! ( n fcur -- ) ! ;
+: FCUR_pos ( fcur -- n ) 8 + @ ;
+: FCUR_pos+ ( fcur -- n ) 8 + dup @ 1 rot +! ;
+: FCUR_size ( fcur -- n ) 12 + @ ;
+: FCUR_buf( ( fcur -- a ) 16 + ;
 
 create fcursors( FCursorSize FCURSORCNT * allot0
 
 : findfreecursor ( -- fcursor )
   FCURSORCNT >r fcursors( begin
-    dup FCUR_cluster0 not if r~ exit then FCursorSize + next
+    dup FCUR_cluster not if r~ exit then FCursorSize + next
   abort" out of file cursors" ;
 
 \ Read multiple sectors in buf
@@ -164,21 +163,20 @@ create fcursors( FCursorSize FCURSORCNT * allot0
 \ the cursor
 : openfile ( direntry -- fcursor )
   findfreecursor >r
-  dup DIR_Cluster dup r@ FCUR_buf( readcluster
-  dup r@ w! r@ FCUR_cluster!
-  0 r@ 4 + ! DIR_FileSize r@ 8 + ! r> ;
+  dup DIR_Cluster
+  r@ FCUR_cluster!
+  dup fatbuf( - bufsec BPB_BytsPerSec * + r@ 4 + !
+  0 r@ 8 + ! DIR_FileSize r@ 12 + ! r> ;
 
 : fatopen ( path -- fcursor ) fatfindpath openfile ;
 
 : fatgetc ( fcursor -- c )
   dup FCUR_pos over FCUR_size = if drop -1 exit then
-  dup FCUR_pos+ ClusterSize mod over FCUR_buf( + c@
-  over FCUR_pos ClusterSize mod not if
-    over FCUR_cluster FAT@
-    dup EOC? if drop else
-      dup 2 < if abort" cluster out of range" then
-      rot 2dup FCUR_cluster!
-      tuck FCUR_buf( readcluster swap then
-  then nip ;
+  dup FCUR_pos ClusterSize mod not if
+    dup FCUR_cluster
+    dup 2 < if abort" cluster out of range" then
+    2dup swap FCUR_buf( readcluster
+    FAT@ over FCUR_cluster! then
+  dup FCUR_pos+ ClusterSize mod swap FCUR_buf( + c@ ;
 
 : fatclose ( fcursor ) 0 swap w! ;

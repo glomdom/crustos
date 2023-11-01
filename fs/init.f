@@ -1,8 +1,6 @@
 \ Initialization Layer
 \ Called at the end of boot.f
 
-f<< lib/dict.f
-f<< lib/annotate.f
 f<< sys/doc.f
 f<< lib/io.f
 f<< sys/scratch.f

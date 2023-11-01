@@ -1,5 +1,9 @@
 \ C Compiler Abstract Syntax Tree
-\ requires cc/tok.f and cc/ops.f
+
+?f<< lib/wordtbl.f
+?f<< cc/tok.f
+?f<< cc/tree.f
+?f<< cc/type.f
 
 \ Unary Operators
 7 const UOPSCNT
@@ -226,7 +230,7 @@ alias noop parseExpression ( tok -- node )
     '(' of isChar?^
       nextt parseExpression nextt ')' expectChar
     endof
-    
+
     '"' of isChar?^
       AST_STRLIT createnode 0 c, 0 begin
         _cc< dup '"' = not while c, 1+ repeat

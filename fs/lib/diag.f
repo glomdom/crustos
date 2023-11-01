@@ -6,7 +6,7 @@
   S" SP " stype scnt .x1 spc> S" RS " stype rcnt .x1 spc>
   S" -- " stype stack? psdump ;
 : .free
-  here ['] 2drop ( first word in boot.fs ) - .sz ."  used "
+  here ['] 2drop ( first word in boot.f ) - .sz ."  used "
   heremax here - .sz ."  free" ;
 
 : dump ( a -- ) \ dump 8 lines of data after "a"

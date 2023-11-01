@@ -1,5 +1,8 @@
 \ C Compiler Code Generation Utils
-\ Requires lib/wordtbl, cc/vm and cc/ast
+
+?f<< lib/wordtbl.f
+?f<< cc/vm.f
+?f<< cc/ast.f
 
 \ Code generation
 
@@ -190,7 +193,7 @@ ASTIDCNT wordtbl gentbl ( node -- )
   firstchild nextsibling ?dup if -4 swap begin
     dup selop1 gennode swap dup selop2 sf+>op op1<>op2 vmmov, selop1 opdeinit
     4 - swap nextsibling ?dup not until drop then
-  
+
   \ Call
   oppop vmcall>op, ;
 

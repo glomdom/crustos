@@ -1,5 +1,4 @@
 \ C Compiler Virtual Machine
-\ Requires asm
 
 \ The goal of this VM is to provide a unified API for code generation of a C
 \ AST across CPU architecture.
@@ -31,6 +30,8 @@
 \ error. To set the operand when it's not none it's also an error.
 
 \ For usage example, see tests/cc/vm.f
+
+?f<< asm.f
 
 : _err abort" vm err" ;
 : _assert not if _err then ;
