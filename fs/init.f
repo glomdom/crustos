@@ -16,5 +16,5 @@ f<< sys/xhere.f
 f<< sys/rdln.f
 f<< lib/btrace.f
 
-: init S" crustOS" stype nl> .free rdln$ ;
+: init S" crustOS" stype nl> .free rdln$ quit ;
 init
