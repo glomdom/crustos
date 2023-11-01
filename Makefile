@@ -1,24 +1,25 @@
 TARGETS = crust
 BOOT_SRC = fs/xcomp/bootlo.f fs/drv/ramdrive.f fs/xcomp/glue1.f fs/fs/fatlo.f fs/xcomp/glue2.f fs/xcomp/boothi.f
+ALL_SRCS = $(shell find fs/)
 
 all: $(TARGETS)
 
 crust: crust.asm boot.f fatfs
-	@echo " ASM      crust.asm"
+	@printf "%8s %s\n" ASM $<
 	@nasm -f elf32 crust.asm -o crust.o
-	@echo " LD       crust"
+	@printf "%8s %s\n" LD $@
 	@ld -m elf_i386 crust.o -o $@
 
 boot.f: $(BOOT_SRC)
-	@echo " CAT      BOOT_SRC -> $@"
+	@printf "%8s %s -> %s\n" CAT BOOTSRC $@
 	@cat $(BOOT_SRC) > $@
 
-fatfs: fs
-	@echo " DD       $@"
+fatfs: $(ALL_SRCS)
+	@printf "%8s %s\n" DD $@
 	@dd if=/dev/zero of=$@ bs=1M count=1 status=none
-	@echo " MFORMAT  $@"
+	@printf "%8s %s\n" MFORMAT $@
 	@mformat -M 512 -d 1 -i $@ ::
-	@echo " MCOPY    fs/* -> $@"
+	@printf "%8s %s -> %s\n" MCOPY "fs/*" $@ 
 	@mcopy -sQ -i $@ fs/* ::
 
 .PHONY: run
