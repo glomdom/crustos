@@ -4,7 +4,7 @@
 \ which has been loaded at boot time (or simply prior to this unit, if the boot
 \ filesystem wasn't FAT).
 
-\ because it uses words from "fatlo" that aren't always prefixed with "fat",
+\ Because it uses words from "fatlo" that aren't always prefixed with "fat",
 \ it's better to have this until loaded early in init.f to avoid name clashes.
 
 \ For now, this FS only supports FAT16 and FAT12.
@@ -24,7 +24,7 @@ $ffff const EOC
     $f000 and rot $fff and or then
   swap w! ;
 : FAT16! ( entry cluster -- ) FAT16' w! ;
-: FAT! ( entry cluster -- ) FAT12? if FAT12! else FAT16! then ;
+: FAT! ( entry cluster -- ) FAT12? if FAT12! else FAT16! then writecursector ;
 
 : zerocluster ( cluster -- )
   fatbuf( BPB_BytsPerSec 0 fill
@@ -34,6 +34,13 @@ $ffff const EOC
 \ Find a free cluster from the FAT.
 : findfreecluster ( -- cluster )
   1 begin 1+ dup FAT@ not until ;
+
+\ Get next FAT entry and if it's EOC, allocate a new one
+: FAT@+ ( cluster -- entry )
+  dup FAT@ dup EOC? if
+    drop findfreecluster 2dup swap FAT!
+    EOC swap FAT!
+  else nip then ;
 
 \ Try to find in the current buffer.
 : _findinsec ( -- a-or-0 )
@@ -58,3 +65,38 @@ $ffff const EOC
   fatfindpathdir findfreedirentry
   dup DIRENTRYSZ 0 fill
   fnbuf( swap FNAMESZ move writecursector ;
+
+\ Write multiple sectors from `buf`
+: writesectors ( sec u buf -- )
+  A>r swap >r swap >A begin
+    A> over (drv!) A+ drvblksz + next drop r>A ;
+
+: writecluster ( cluster src -- )
+  over 2 - $fff6 > if abort" cluster out of range!" then
+  swap FirstSectorOfCluster swap BPB_SecPerClus swap writesectors ;
+
+: _ ( fcursor -- ) \ fatflush
+  dup FCUR_dirty? not if drop exit then
+  dup FCUR_cluster over FCUR_buf( writecluster
+  dup FCUR_dirent over FCUR_size swap DIR_FileSize!
+  writecursector
+  dup FCUR_flags $fffffffd and swap FCUR_flags! ;
+current to fatflush
+
+\ Grow `fcursor` to `newsz`, if needed.
+: fatgrow ( newsz fcursor -- )
+  2dup FCUR_size <= if 2drop exit then
+  dup >r FCUR_size! r@ FCUR_cluster0
+  ?dup not if findfreecluster then
+  r@ FCUR_dirent 2dup DIR_Cluster!
+  r@ FCUR_size swap DIR_FileSize! writecursector
+  r> FCUR_size ClusterSize / ?dup if
+    >r begin FAT@+ next then drop ;
+
+\ Write `c` to `fcursor` and advance the position by 1, growing the file
+\ if needed.
+: fatputc ( c fcursor -- )
+  dup >r FCUR_pos 1+ dup 1+ r@ fatgrow
+  r@ fatseek
+  r@ FCUR_flags 2 or r@ FCUR_flags!
+  r> FCUR_bufpos c! ;

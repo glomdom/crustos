@@ -73,7 +73,9 @@ here const )fatbuf
 11 const FNAMESZ
 : DIR_Name ( direntry -- sa sl ) FNAMESZ ;
 : DIR_Cluster ( direntry -- cluster ) 26 + w@ ;
+: DIR_Cluster! ( cluster direntry -- ) 26 + w! ;
 : DIR_FileSize ( direntry -- sz ) 28 + @ ;
+: DIR_FileSize! ( sz direntry -- ) 28 + ! ;
 
 \ Dummy entry so that we can reference the root directory as a "directory"
 create rootdirentry( DIRENTRYSZ allot0
@@ -153,7 +155,7 @@ here const )fnbuf
 : FCUR_pos ( fcur -- n ) 12 + @ ;
 : FCUR_pos! ( n fcur -- n ) 12 + ! ;
 : FCUR_size ( fcur -- n ) 16 + @ ;
-: FCUR_size+ ( fcur -- ) 16 + 1 swap +! ;
+: FCUR_size! ( n fcur -- ) 16 + ! ;
 : FCUR_buf( ( fcur -- a ) 20 + ;
 : FCUR_bufpos ( fcur -- a ) dup FCUR_pos ClusterSize mod swap FCUR_buf( + ;
 : FCUR_dirent ( fcur -- dirent )
@@ -205,4 +207,4 @@ alias drop fatflush ( fcursor -- )
     2drop -1 exit then
   over fatseek FCUR_bufpos c@ ;
 
-: fatclose ( fcursor ) 0 swap w! ;
+: fatclose ( fcursor ) dup fatflush 0 swap FCUR_flags! ;

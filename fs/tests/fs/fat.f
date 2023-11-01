@@ -37,4 +37,10 @@ S" /lib/str.f" fatfindpath # \ found
 S" newfile" fatnewfile #
 S" /newfile" fatfindpath # \ yes we can
 
+\ lets try writing to it
+S" /newfile" fatfindpath openfile
+dup FCUR_cluster0 0 #eq \ no cluster allocated yet
+'4' over fatputc '2' over fatputc SPC over fatputc fclose
+f<< /newfile 42 #eq
+
 testend
