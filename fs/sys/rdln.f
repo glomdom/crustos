@@ -23,5 +23,6 @@ in) value in>
 : rdln< ( -- c ) rdln<? ?dup not if
   rdln in( to in> SPC then ;
 : rdln$ ['] rdln< to in< in) to in> ;
-: _ rdln$ mainloop ;
+
+: _ rdln$ unaliases main ;
 ' _ to main

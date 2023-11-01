@@ -111,3 +111,6 @@ alias else endof immediate
 
 \ Doc Comment Placeholder
 alias \ \\
+
+\ Words for alias chaining
+: unaliases ' to' execute @ execute, ; immediate

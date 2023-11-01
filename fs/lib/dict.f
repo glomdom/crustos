@@ -5,7 +5,7 @@
 : wordname[] ( w -- sa sl )
   dup wordlen swap 5 - over - ( sl sa ) swap ;
 
-: word? ( w -- f ) wordname[] if c@ 127 = not else drop 0 then ;
+: word? ( w -- f ) dup if wordname[] if c@ 127 = not else drop 0 then then ;
 : (prevword) ( w -- w ) begin dup while dup word? not while preventry repeat then ;
 : prevword ( w -- w ) preventry (prevword) ;
 : lastword ( -- w ) current (prevword) ;

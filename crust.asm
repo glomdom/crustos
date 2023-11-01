@@ -68,6 +68,7 @@ curword: resb 0x20
 inrd: resd 1
 emit: resd 1
 main: resd 1
+abort: resd 1
     resd PS_SZ
 ps_top:
     resd RS_SZ
@@ -93,6 +94,7 @@ _start:
     mov dword [main], word_mainloop
     mov dword [inrd], word_bootrd
     mov dword [emit], word__emit
+    mov dword [abort], word__abort
     jmp word_abort
 
 firstword 'bye', 3, word_bye
@@ -112,7 +114,7 @@ defword 'quit', 4, word_quit
     mov esp, rs_top
     jmp word_main
 
-defword 'abort', 5, word_abort
+defword '(abort)', 7, word__abort
     test byte [exitonabort], -1
     jz _abort_no_exit
     mov eax, SYSCALL_EXIT
@@ -121,6 +123,9 @@ defword 'abort', 5, word_abort
 _abort_no_exit:
     mov ebp, ps_top
     jmp word_quit
+
+defword 'abort', 5, word_abort
+    sysalias abort
 
 defword 'exitonabort', 11, word_exitonabort
     mov byte [exitonabort], 1

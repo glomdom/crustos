@@ -14,6 +14,7 @@ f<< lib/nfmt.f
 f<< lib/diag.f
 f<< sys/xhere.f
 f<< sys/rdln.f
+f<< lib/btrace.f
 
 : init S" crustOS" stype nl> .free rdln$ ;
 init
