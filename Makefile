@@ -15,7 +15,7 @@ boot.f: $(BOOT_SRC)
 
 fatfs: fs
 	@echo " DD       $@"
-	@dd if=/dev/zero of=$@ bs=1M count=1 status=none
+	@dd if=/dev/zero of=$@ bs=4194304 count=1 &>/dev/null
 	@echo " MFORMAT  $@"
 	@mformat -M 512 -d 1 -i $@ ::
 	@echo " MCOPY    fs/* -> $@"
