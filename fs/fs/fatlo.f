@@ -4,8 +4,11 @@
 \ right after `boot.f` and provide the means to continue bootstrapping
 \ on.
 
-\ Its goal is to provide fopen, fclose and fread. Nothing more. The rest of the
-\ FAT12/FAT16 implementation is in fs/fat.f
+\ Its goal is to provide a read-only access to FAT12/FAT16 volumes. The "write"
+\ part is in fs/fat. This unit is more than strictly necessary to get through
+\ the boot process, but it is organized thus so that we can leverage a maximum
+\ of logic from this unit in fs/fat. All in all, "read and core stucture" is
+\ here, "write" is in fs/fat.
 
 \ This unit has access to a very small set of words, that is, words implemented
 \ by boot.f as well as (drv@) and drvblksz from the "drive" protocol, which is
@@ -130,25 +133,38 @@ here const )fnbuf
   fatfindpath curdir( DIRENTRYSZ move ;
 
 \ File cursor
-\ 2b first cluster ; 0 = free cursor
-\ 2b current cluster in buf
+\ 4b flags. all zeroes = free cursor
+\    b0 = used
+\    b1 = buffer is dirty
+\ 4b current cluster in buf 0=nothing. the cluster is not actually read
+\    until the first position of the cluster is needed.
+\ 4b offset, on disk, of direntry
 \ 4b cur pos (offset from beginning of file)
 \ 4b file size
 \ Xb current cluster X=ClusterSize
 10 const FCURSORCNT \ Maximum number of opened files
-: FCursorSize ClusterSize 16 + ;
-: FCUR_cluster ( fcur -- n ) @ ;
-: FCUR_cluster! ( n fcur -- ) ! ;
-: FCUR_pos ( fcur -- n ) 8 + @ ;
-: FCUR_pos+ ( fcur -- n ) 8 + dup @ 1 rot +! ;
-: FCUR_size ( fcur -- n ) 12 + @ ;
-: FCUR_buf( ( fcur -- a ) 16 + ;
+: FCursorSize ClusterSize 20 + ;
+: FCUR_flags ( fcur -- n ) @ ;
+: FCUR_free? ( fcur -- f ) FCUR_flags not ;
+: FCUR_dirty? ( fcur -- f ) FCUR_flags 2 and ;
+: FCUR_flags! ( n fcur -- ) ! ;
+: FCUR_cluster ( fcur -- n ) 4 + @ ;
+: FCUR_cluster! ( n fcur -- ) 4 + ! ;
+: FCUR_pos ( fcur -- n ) 12 + @ ;
+: FCUR_pos! ( n fcur -- n ) 12 + ! ;
+: FCUR_size ( fcur -- n ) 16 + @ ;
+: FCUR_size+ ( fcur -- ) 16 + 1 swap +! ;
+: FCUR_buf( ( fcur -- a ) 20 + ;
+: FCUR_bufpos ( fcur -- a ) dup FCUR_pos ClusterSize mod swap FCUR_buf( + ;
+: FCUR_dirent ( fcur -- dirent )
+  8 + @ BPB_BytsPerSec /mod 1 readsector fatbuf( + ;
+: FCUR_cluster0 ( fcur -- cl ) FCUR_dirent DIR_Cluster ;
 
 create fcursors( FCursorSize FCURSORCNT * allot0
 
 : findfreecursor ( -- fcursor )
   FCURSORCNT >r fcursors( begin
-    dup FCUR_cluster not if r~ exit then FCursorSize + next
+    dup FCUR_free? if r~ exit then FCursorSize + next
   abort" out of file cursors" ;
 
 \ Read multiple sectors in buf
@@ -157,26 +173,36 @@ create fcursors( FCursorSize FCURSORCNT * allot0
     A> over (drv@) A+ drvblksz + next drop r>A ;
 
 : readcluster ( cluster dst -- )
+  over 2 - $fff6 > if abort" cluster out of range" then
   swap FirstSectorOfCluster swap BPB_SecPerClus swap readsectors ;
 
 \ Opens the specified `direntry` into one of the free cursors and returns
 \ the cursor
 : openfile ( direntry -- fcursor )
   findfreecursor >r
-  dup DIR_Cluster
-  r@ FCUR_cluster!
-  dup fatbuf( - bufsec BPB_BytsPerSec * + r@ 4 + !
-  0 r@ 8 + ! DIR_FileSize r@ 12 + ! r> ;
+  0 r@ FCUR_cluster! 1 r@ FCUR_flags!
+  dup fatbuf( - bufsec BPB_BytsPerSec * + r@ 8 + !
+  -1 r@ 12 + ! DIR_FileSize r@ 16 + ! r> ;
 
 : fatopen ( path -- fcursor ) fatfindpath openfile ;
 
-: fatgetc ( fcursor -- c )
-  dup FCUR_pos over FCUR_size = if drop -1 exit then
-  dup FCUR_pos ClusterSize mod not if
-    dup FCUR_cluster
-    dup 2 < if abort" cluster out of range" then
+alias drop fatflush ( fcursor -- )
+
+\ Set `fcursor` to `pos`. If new `pos` crosses cluster boundaries compared to current
+\ `pos`, flush current buffer and read a new sector from disk.
+: fatseek ( pos fcursor -- )
+  over 0< if abort" can't seek to negative pos" then
+  over ClusterSize / over FCUR_pos ClusterSize / = not if
+    dup fatflush
+    over ClusterSize / over FCUR_cluster0
+    swap ?dup if >r begin FAT@ next then
     2dup swap FCUR_buf( readcluster
-    FAT@ over FCUR_cluster! then
-  dup FCUR_pos+ ClusterSize mod swap FCUR_buf( + c@ ;
+    over FCUR_cluster!
+  then FCUR_pos! ;
+
+: fatgetc ( fcursor -- c )
+  dup FCUR_pos 1+ over FCUR_size over <= if
+    2drop -1 exit then
+  over fatseek FCUR_bufpos c@ ;
 
 : fatclose ( fcursor ) 0 swap w! ;

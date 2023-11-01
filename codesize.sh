@@ -12,4 +12,4 @@ find fs/cc -type f | xargs cat | grep -v "^\\\\" | grep -v '^$' | wc -l
 echo "Test code:"
 find fs/tests -type f | xargs cat | wc -l
 echo "Assember:"
-cat crust.asm | wc -l
+printf "%d OF PURE HELL\n" `cat crust.asm | wc -l`
