@@ -34,7 +34,7 @@ create bopsprectbl  1 c, 1 c, 0 c, 0 c, 2 c, 2 c, 3 c, 3 c, 3 c, 3 c,
 : bopprec ( opid -- precedence ) BOPSCNT min bopsprectbl + c@ ;
 : boptoken ( opid -- tok ) BOPTlist slistiter ;
 
-16 const ASTIDCNT
+18 const ASTIDCNT
 0 const AST_DECLARE
 1 const AST_UNIT
 2 const AST_FUNCTION
@@ -51,6 +51,8 @@ create bopsprectbl  1 c, 1 c, 0 c, 0 c, 2 c, 2 c, 3 c, 3 c, 3 c, 3 c,
 13 const AST_STRLIT
 14 const AST_FUNCALL
 15 const AST_FOR
+16 const AST_PSPUSH
+17 const AST_PSPOP
 
 \ It's important that decl.name and func.name have the same offset.
 \ Poor man's polymorphism..
@@ -73,7 +75,7 @@ NODESZ      ufield ast.funcall.funcname
 
 ASTIDCNT stringlist astidnames
 "declare" "unit" "function" "return" "constant" "stmts" "args" "ident"
-"unaryop" "postop" "binop" "list" "if" "str" "call" "for"
+"unaryop" "postop" "binop" "list" "if" "str" "call" "for" "push" "pop"
 
 0 value curunit
 
@@ -143,6 +145,8 @@ ASTIDCNT wordtbl astdatatbl ( node -- node )
 :w ( StrLit ) _[ dup ast.strlit.value stype _] ;
 'w noop ( FunCall )
 'w noop ( For )
+'w noop ( PSPush )
+'w noop ( PSPop )
 
 : printast ( node -- )
   ?dup not if ." null" exit then
@@ -230,6 +234,7 @@ alias noop parseExpression ( tok -- node )
 \ 4. a function call
 \ 5. an expression inside parenthesis
 \ 6. a string literal
+\ 7. pspop()
 : parseFactor ( tok -- node )
   case
     '(' of isChar?^
@@ -240,6 +245,11 @@ alias noop parseExpression ( tok -- node )
       AST_STRLIT createnode 0 c, 0 begin
         _cc< dup '"' = not while c, 1+ repeat
       drop over NODESZ + c!
+    endof
+
+    S" pspop" of s=
+      nextt '(' expectChar nextt ')' expectChar
+      AST_PSPOP createnode
     endof
 
     of uopid
@@ -322,8 +332,8 @@ current to parseExpression
 
 alias noop parseStatements ( funcnode -- )
 
-3 stringlist statementnames "return" "if" "for"
-3 wordtbl statementhandler ( snode -- snode )
+4 stringlist statementnames "return" "if" "for" "pspush"
+4 wordtbl statementhandler ( snode -- snode )
 :w ( return )
   dup AST_RETURN newnode ( snode rnode )
   nextt dup S" ;" s= if
@@ -347,6 +357,10 @@ alias noop parseStatements ( funcnode -- )
   nextt parseExpression over addnode
   nextt ')' expectChar
   parseStatements ;
+:w ( pspush ) dup AST_PSPUSH newnode
+  nextt '(' expectChar
+  nextt parseExpression swap addnode
+  nextt ')' expectChar read; ;
 
 : _ ( parentnode -- )
   nextt '{' expectChar AST_STATEMENTS newnode nextt

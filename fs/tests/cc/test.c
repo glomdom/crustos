@@ -60,6 +60,10 @@ int funcall() {
     return retconst();
 }
 
+void pushpop() {
+    pspush(pspop());
+}
+
 int adder(int a, int b) {
     return a + b;
 }

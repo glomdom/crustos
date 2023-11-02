@@ -7,5 +7,6 @@
 \ these cursor live in the system scratchpad, they'd be overwritten by faster-
 \ paced data.
 
-$4000 scratchpad$ syspad
+\ WHAT THE FUCK? CC has memory corruption when working with a 0x4000 scratchpad..
+$8000 scratchpad$ syspad
 syspad to Scratchpad

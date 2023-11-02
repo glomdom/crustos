@@ -173,7 +173,7 @@ operands value 'curop
   selop2 oparg swap oparg! optype rot optype!
   selop1 optype! oparg! ;
 
-\ Code generation - Functions, Calls, Returns
+\ Code generation - Functions, Calls, Returns, pspop, pspush
 
 \ Generate function prelude code by allocating 'locsz' bytes on PS
 : vmprelude, ( argsz locsz -- )
@@ -197,6 +197,14 @@ operands value 'curop
   call, opdeinit
   VM_REGISTER optype! regallot dup oparg! r! [ebp] mov,
   ebp 4 i32 add, 0 to callsz ;
+
+\ Allocate a new register for active op and pop 4b from PS into it.
+: vmpspop,
+  noop# VM_REGISTER optype! regallot dup oparg! r! [ebp] mov,
+  ebp CELLSZ i32 add, ;
+
+\ Push active op to PS.
+: vmpspush, opderef ebp CELLSZ i32 sub, [ebp] opAsm mov, opdeinit ;
 
 \ Code Generation - BinaryOps
 

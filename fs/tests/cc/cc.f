@@ -20,6 +20,7 @@ binopshr 10 #eq
 boolops 0 #eq
 variables 82 #eq
 funcall 42 #eq
+42 pushpop 42 #eq
 2 3 adder 5 #eq
 3 2 subber 1 #eq
 42 plusone 43 #eq

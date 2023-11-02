@@ -250,13 +250,15 @@ ASTIDCNT wordtbl gentbl ( node -- )
   \ call
   oppop vmcall>op, ;
 :w ( For )
-  firstchild dup _assert dup gennode ops$ ( exprnode ) \ initialization
-  here swap ( loop_addr node )
-  nextsibling dup _assert dup gennode ( loop' exprnode ) \ control
-  vmjz[, swap ( loop' cond' node ) ops$
+  firstchild dup _assert dup gennode ops$ \ initialization
+  here swap
+  nextsibling dup _assert dup gennode \ control
+  vmjz[, swap ops$
   nextsibling dup _assert dup gennode ops$ \ adjustment
-  nextsibling dup _assert gennode ( loop' cond' ) \ body
-  swap vmjmp, ( cond' ) ]vmjmp ;
+  nextsibling dup _assert gennode \ body
+  swap vmjmp, ]vmjmp ;
+:w ( PSPush ) firstchild dup _assert gennode vmpspush, ;
+:w ( PSPop ) drop vmpspop, ;
 
 : _ ( node -- ) gentbl over nodeid wexec ;
 current to gennode
