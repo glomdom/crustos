@@ -189,7 +189,10 @@ ASTIDCNT wordtbl gentbl ( node -- )
 :w ( Constant ) ast.const.value const>op ;
 :w ( Statements )
   \ we run ops$ between each statement to discard any unused Result
-  firstchild ?dup if begin dup gennode ops$ nextsibling ?dup not until then ;
+  dup firstchild begin ?dup while dup gennode ops$ nextsibling repeat
+  dup ast.stmts.funcbody? if
+    lastchild ?dup if nodeid AST_RETURN = not if vmret, then else vmret, then
+  else drop then ;
 'w genchildren ( ArgSpecs )
 :w ( Ident ) dup lv>decl ?dup if ( inode dnode )
     nip decl>op else ( inode )

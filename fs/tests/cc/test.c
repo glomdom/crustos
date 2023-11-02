@@ -120,7 +120,7 @@ int exprparens() {
 }
 
 // test that a void function doesn't add anything to PS
-void cnoop() { return; }
+void cnoop() {}
 
 // test that pointer arithmetics properly multiply operands by 2 or 4.
 int* ptrari(int *x) {

@@ -114,6 +114,9 @@ ASTIDCNT stringlist astidnames
     over ast.decl.totsize +
     swap nextsibling swap repeat nip ;
 
+\ Is `snode` a function body?
+: ast.stmts.funcbody? ( snode -- f ) parentnode nodeid AST_FUNCTION = ;
+
 : _[ '[' emit ;
 : _] ']' emit ;
 
