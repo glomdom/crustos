@@ -13,4 +13,4 @@ require sys/xhere.f
   xhere$ xhere[ parseast curunit _debug if dup printast nl> then ]xhere
   gennode ;
 
-: cc<< ( -- ) word fopen dup [f<] to stdin cc1, fclose ;
+: cc<< ( -- ) ['] cc1, word with-stdin-file ;
