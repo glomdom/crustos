@@ -1,3 +1,5 @@
+bootfile drv/ramdrive.f
+
 \ Drive in RAM
 
 \ This implements the "drive" protocol, which for now is undocumented, on top

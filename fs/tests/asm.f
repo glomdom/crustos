@@ -30,4 +30,16 @@ code foo3
 
 foo3 42 #eq 42 #eq
 
+\ Test for shr/shl
+code foo4
+  eax 42 i32 mov,
+  eax 3 i32 shl,
+  cl 2 i32 mov,
+  eax cl shr,
+  ebp 4 i32 sub,
+  [ebp] eax mov,
+  ret,
+
+foo4 84 #eq
+
 testend

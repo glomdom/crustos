@@ -1,55 +1,97 @@
-\ C Compiler Code Generation Utils
+\ C compiler code generation
 
+\ Code generation
+
+\ This unit takes an AST and generates native code using cc/vm operations. We
+\ do so by starting from the root Unit node, iterate children (Functions) and
+\ recursively "resolve" them.
+
+\ As a general rule, we stay with Op1 (in cc/vm) active. Op2 usage is an
+\ exception. However, it's very important that "regular" node handler *don't*
+\ explicitely select Op1, because when we select Op2 for these exceptional
+\ reasons, we generally want to to this recursively, all the way down. This is
+\ why we don't see "selop" calls except in those exceptional places. We always
+\ target the "active" op.
+
+\ Binary Op resolution strategy
+\ The Binary Op node generation logic a few lines below needs a bit of an
+\ explanation. A binary op needs the two VM operands at once, apply an operation
+\ on them and return the result in Op1. Yes, Op1, not "active" op.
+
+\ A binary op can have 3 basic configuration for its two children:
+\ 1. Both children are "single ops" (or lvalues, or constants... nothing that
+\    requires 2 ops.
+\ 2. One of the child is or contains a node that needs 2 ops and the other is
+\    simple.
+\ 3. Both children are or contain nodes that need 2 ops.
+
+\ The first configuration is easy to solve, no need for anything. You resolve
+\ the first in op1, the second in op2, then apply the operation.
+
+\ The second configuration needs careful threading. Because the binop requires
+\ both VM operands, it should be executed first. If the binop is "left" (the
+\ first child), then nothing special needs to be done, Op1 has the proper value.
+\ If the binop is "right", then we need to swap Op1 and Op2 after having
+\ resolved it so that its result sits in the proper Op.
+
+\ The third configuration is the tricky one. If nothing is done, the result of
+\ the first binop will be overwritten by the calculation made by the second
+\ binop. We need to:
+\ 1. resolve the first node
+\ 2. save the result
+\ 3. resolve the second node
+\ 4. swap the result to Op2
+\ 5. restore the result to Op1.
+
+\ cc/vm abstracts away the save/restore mechanism through oppush/oppop.
 ?f<< lib/wordtbl.f
 ?f<< cc/vm.f
 ?f<< cc/ast.f
 
-\ Code generation
-
 : _err ( -- ) abort" gen error" ;
 : _assert ( f -- ) not if _err then ;
 
-alias noop gennode
+alias noop gennode ( node -- ) \ forward declaration
 
-: genchildren
+: genchildren ( node -- )
   firstchild ?dup if begin dup gennode nextsibling ?dup not until then ;
 
-: spit A>r >r >A begin Ac@+ .x1 next r>A ;
+: spit ( a u -- ) A>r >r >A begin Ac@+ .x1 next r>A ;
 : lv>decl ( inode -- dnode-or-0 )
-  dup ast.ident.name dup rot AST_FUNCTION parentnodeid
-  ast.func.finddecl ?dup not if
+  dup ast.ident.name dup rot AST_FUNCTION parentnodeid ( name name fnode )
+  ast.func.finddecl ?dup not if ( name )
     ast.unit.find else nip then ;
 
-\\ Multiply the value of "node" by a factor of "n"
-\\ FIXME: doesnt support lvalues and expressions
-: node*=n
-  dup nodeid case
+\ Multiply the value of "node" by a factor of "n"
+\ TODO: support lvalues and expressions
+: node*=n ( n node -- )
+  dup nodeid case ( n node )
     AST_CONSTANT of = tuck ast.const.value * swap to ast.const.value endof
     _err
   endcase ;
 
-\\ Return the "pointer arithmetic size" of "node"
+\ Return the "pointer arithmetic size" of "node".
 : node*arisz ( node -- n )
-  dup nodeid AST_IDENT = if
-    lv>decl ?dup _assert dup ast.decl.type
-    swap ast.decl.nbelem 1 > if type*lvl+ then *ariunitsz else
+  dup nodeid AST_IDENT = if ( node )
+    lv>decl ?dup _assert dup ast.decl.type ( dnode type )
+    swap ast.decl.nbelem ( nbelem ) 1 > if type*lvl+ then *ariunitsz ( n ) else
     drop 1 then ;
 
-\\ Given a BinaryOp node, verify whether pointer arithmetic adjustments
-\\ are necessary. If one of the operands is a pointer and the other isn't,
-\\ multiply the "not a pointer" one by the pointer's arithmetic size
-: bop*ari
-  firstchild ?dup _assert dup nextsibling ?dup _assert
-  2dup node*arisz swap node*arisz 2dup = if
-    2drop 2drop else
-    < if swap then
+\ given a BinaryOp node "bnode", verify whether pointer arithmetic adjustments
+\ are necessary. If one of the operands is a pointer and the other is not,
+\ multiply the "not a pointer" one by the pointer's "arithmetic size".
+: bop*ari ( bnode -- )
+  firstchild ?dup _assert dup nextsibling ?dup _assert ( n1 n2 )
+  2dup node*arisz swap node*arisz 2dup = if \ same *arisz, nothing to do
+    2drop 2drop else \ different *arisz, adjust
+    ( n1 n2 sz2 sz1 ) < if swap then ( node-to-adjust pointer-node )
     node*arisz swap node*=n then ;
 
-\\ Does the node need 2 VM operands?
+\ Does node need 2 VM operands?
 : needs2ops? ( node -- f )
   dup nodeid dup AST_BINARYOP = swap AST_FUNCALL = or if drop 1 exit then
   firstchild begin ?dup while dup needs2ops? not while nextsibling repeat
-    drop 1 else 0 then ;
+    ( needs2ops? == true ) drop 1 else ( end of children ) 0 then ;
 
 UOPSCNT wordtbl uopgentbl ( -- )
 :w ( - ) vmneg, ;
@@ -69,6 +111,8 @@ BOPSCNT wordtbl bopgentblpre ( node -- node )
 'w noop ( - )
 'w noop ( * )
 'w noop ( / )
+'w noop ( << )
+'w noop ( >> )
 'w noop ( < )
 'w noop ( > )
 'w noop ( <= )
@@ -87,6 +131,8 @@ BOPSCNT wordtbl bopgentblpost ( -- )
 'w vmsub, ( - )
 'w vmmul, ( * )
 :w ( / ) abort" TODO" ;
+'w vm<<,
+'w vm>>,
 'w vm<, ( < )
 :w ( > ) abort" TODO" ;
 :w ( <= ) abort" TODO" ;
@@ -104,51 +150,49 @@ BOPSCNT wordtbl bopgentblpost ( -- )
   dup ast.decl.isglobal? if
     ast.decl.sfoff mem>op
   else
-    dup ast.decl.sfoff sf+>op
-    ast.decl.nbelem 1 > if &op>op then
+    dup ast.decl.sfoff sf+>op ( dnode )
+    ast.decl.nbelem ( nbelem ) 1 > if &op>op then
   then ;
 
 ASTIDCNT wordtbl gentbl ( node -- )
-:w ( Declare )
-  dup ast.decl.isglobal? if
+:w ( Declare ) dup ast.decl.isglobal? if
     here over to ast.decl.sfoff
     dup ast.decl.totsize allot
-    dup firstchild nodeid case
+    dup firstchild nodeid case ( dnode )
       AST_CONSTANT of =
         dup firstchild ast.const.value
         over ast.decl.sfoff !
       endof
     endcase drop
-  else
-    dup >r AST_FUNCTION parentnodeid dup ast.func.cursf
-    r@ ast.decl.totsize -
-    dup rot to ast.func.cursf
-    r@ to ast.decl.sfoff
-    r@ firstchild ?dup if
-      selop1 gennode op1<>op2
+  else ( node )
+    dup >r AST_FUNCTION parentnodeid dup ast.func.cursf ( fnode cursf )
+    r@ ast.decl.totsize - ( fnode cursf )
+    dup rot to ast.func.cursf ( cursf )
+    r@ to ast.decl.sfoff ( )
+    r@ firstchild ?dup if ( node )
+      selop1 gennode ( value in op1 ) op1<>op2
       selop1 r@ decl>op vmmov,
     then r~
   then ;
-
 'w genchildren ( Unit )
 :w ( Function )
-  _debug if ." debug: " dup ast.func.name stype nl> then
+  _debug if ." debugging: " dup ast.func.name stype nl> then
   ops$
   dup ast.func.sfsize over to ast.func.cursf
-  dup ast.func.name entry
+  dup ast.func.name entry ( fnode )
   here over to ast.func.address
-  over ast.func.argsize over ast.func.sfsize over - vmprelude,
+  over ast.func.argsize over ast.func.sfsize over - ( argsz locsz ) vmprelude,
   dup genchildren
-  ast.func.cursf not _assert
+  ast.func.cursf not _assert \ all decl nodes have been "processed"
   _debug if current here current - spit nl> then ;
 :w ( Return ) genchildren vmret, ;
 :w ( Constant ) ast.const.value const>op ;
 :w ( Statements )
+  \ we run ops$ between each statement to discard any unused Result
   firstchild ?dup if begin dup gennode ops$ nextsibling ?dup not until then ;
-'w genchildren ( ArgSpec )
-:w ( Ident )
-  dup lv>decl ?dup if
-    nip decl>op else
+'w genchildren ( ArgSpecs )
+:w ( Ident ) dup lv>decl ?dup if ( inode dnode )
+    nip decl>op else ( inode )
     ast.ident.name find ?dup _assert mem>op then ;
 :w ( UnaryOp )
   _debug if ." unaryop: " dup printast nl> .ops then
@@ -157,51 +201,59 @@ ASTIDCNT wordtbl gentbl ( node -- )
 :w ( PostfixOp )
   dup genchildren
   ast.pop.opid popgentbl swap wexec ;
+\ See "Binary op resolution strategy" in opening comment
 :w ( BinaryOp )
   _debug if ." binop: " dup printast nl> .ops then
-  selectedop >r >r
-  r@ bopgentblpre r@ ast.bop.opid wexec
-  firstchild dup nextsibling swap
-  over needs2ops? if
-    swap gennode
-    dup needs2ops? if
+  selectedop >r ( node ) >r
+  r@ bopgentblpre r@ ast.bop.opid wexec ( node )
+  firstchild dup nextsibling swap ( n2 n1 )
+  over needs2ops? if \ n2 == 2ops
+    \ Resolve n2 before n1
+    swap gennode \ result in op1
+    dup needs2ops? if \ both need 2ops
       oppush rot gennode selop2 oppop else
       selop2 gennode op1<>op2 then
-  else
+  else \ nothing special needed, regular resolution
     selop1 gennode selop2 gennode then
-
   bopgentblpost r> ast.bop.opid wexec
-  r> if op1<>op2 else selop1 then ;
+  r> ( selectedop ) if op1<>op2 else selop1 then ;
+\ TODO: this doesn't work with lvalues yet
 :w ( List )
-  dup childcount dup 1+ 4 * scratchallot dup >r
-  over >r tuck ! 4 + swap firstchild begin
-    dup ast.const.value rot tuck !
-    4 + swap nextsibling next 2drop
+  dup childcount dup 1+ 4 * scratchallot dup >r ( node len a )
+  over >r tuck ! 4 + swap firstchild begin ( a node )
+    dup ast.const.value ( a node value ) rot tuck ! ( node a )
+    4 + swap nextsibling next ( a node ) 2drop
   r> constarray>op ;
 :w ( If )
   firstchild ?dup not if _err then dup gennode ( exprnode )
-  vmjz, swap ops$
+  vmjz[, swap ( jump_addr exprnode ) ops$
   nextsibling ?dup not if _err then dup gennode ( jump_addr condnode )
-  nextsibling ?dup if
-    vmjmp, rot vmjmp!
-    swap gennode then vmjmp! ;
+  nextsibling ?dup if ( jump_addr elsenode )
+    vmjmp[, ( ja1 enode ja2 ) rot ]vmjmp ( enode ja2 )
+    swap gennode ( ja2 ) then ( jump_addr ) ]vmjmp ;
 :w ( StrLit )
-  vmjmp, here
-  rot ast.strlit.value dup c@
-  1+ move, const>op vmjmp! ;
+  vmjmp[, here ( snode jaddr saddr )
+  rot ast.strlit.value dup c@ ( jaddr saddr str len )
+  1+ move, ( jaddr saddr ) const>op ]vmjmp ;
 :w ( FunCall )
-  \ Resolve the address node
-  dup firstchild gennode
-  oppush rot
-
-  \ Pass the arguments
+  \ Resolve address node
+  dup firstchild gennode \ op has call address
+  oppush rot ( oparg optype node )
+  \ pass arguments
   dup childcount 1- 4 * callargallot,
-  firstchild nextsibling ?dup if -4 swap begin
+  firstchild nextsibling ?dup if -4 swap begin ( cursf+ argnode )
     dup selop1 gennode swap dup selop2 sf+>op op1<>op2 vmmov, selop1 opdeinit
     4 - swap nextsibling ?dup not until drop then
-
-  \ Call
+  \ call
   oppop vmcall>op, ;
+:w ( For )
+  firstchild dup _assert dup gennode ops$ ( exprnode ) \ initialization
+  here swap ( loop_addr node )
+  nextsibling dup _assert dup gennode ( loop' exprnode ) \ control
+  vmjz[, swap ( loop' cond' node ) ops$
+  nextsibling dup _assert dup gennode ops$ \ adjustment
+  nextsibling dup _assert gennode ( loop' cond' ) \ body
+  swap vmjmp, ( cond' ) ]vmjmp ;
 
 : _ ( node -- ) gentbl over nodeid wexec ;
 current to gennode

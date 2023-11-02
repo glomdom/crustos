@@ -1,6 +1,6 @@
-\ Located between the storage driver and the FS Handler
+bootfile xcomp/glue1.f
 
-S" drv/ramdrive.f" floaded,
+\ Located between the storage driver and the FS Handler
 
 fatfs( to ramdrv(
 RAMDRVSECSZ const drvblksz

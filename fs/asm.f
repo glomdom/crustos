@@ -23,6 +23,11 @@
 -1 value src        \ source | bit 31 is set for indirect mode
 -1 value disp       \ displacement to use
 
+\ `tgt` and `src` are values from the constants above.
+\ Bits 8-9 represent the appropriate mod (from modrm) for this `tgt`/`src`
+\ Bit 10 is for 16bit mode.
+\ Bit 11 is an indicator that IMM is forced to 8bit.
+\ -1 means unset.
 : asm$ -1 to tgt -1 to src -1 to disp ;
 : _err abort" argument error" ;
 
@@ -54,12 +59,13 @@
 : [ebp] BP [r]+8b! 0 to disp ;
 : [edi] DI [r]! ;
 : [ebp]+ ( disp -- ) BP [r]+8b! to disp ;
-: i32 IMM $400 or to src ;
+: i32 IMM to src ;
 : [i32] ( n -- ) MEM tgt-or-src! to disp ;
 
 \ Writing the thing
 : disp, disp? if disp disp32? if , else c, then then ;
-: prefix, ( -- ) exit
+: imm, ( imm -- ) src $800 and if c, else , then ;
+: prefix, ( -- ) exit \ TODO: Fix this
   tgt is16? if $66 c, then src isimm? not swap is16? and if $67 c, then ;
 : op, ( op -- ) dup 8 rshift ?dup if c, then c, ;
 : inh, ( op -- ) op, asm$ ;
@@ -67,7 +73,7 @@
   prefix, op, ( reg ) 3 lshift tgtid tgt mod or or c,
   disp? if disp c, then asm$ ;
 : modrm<imm, ( imm immreg op -- )
-  op, 3 lshift tgtid or tgt mod or c, disp, , asm$ ;
+  op, 3 lshift tgtid or tgt mod or c, disp, imm, asm$ ;
 : modrm2, ( imm? reg op -- )                  \ modrm op with 2 arguments
   src mod $c0 = not if
     2 + c, mod tgt 3 lshift or srcid or
@@ -105,7 +111,7 @@ $e8 2 op call,
 0 $0f95 op setnz,
 
 \ Two Operands
-: op ( immop immreg regop -- ) doer c, c, c, does>
+: op ( immop /immreg regop -- ) doer c, c, c, does>
   prefix,
   isimm? if
     dup 1+ c@ swap 2 + c@ modrm<imm, else
@@ -123,6 +129,19 @@ $81 6 $33 op xor,
 $58 op pop,
 $50 op push,
 
+\ Shifts. Work with either an immediate or cl src
+: op ( immop /reg regop ) doer c, c, c, does>
+  prefix,
+  isimm? if
+    src $800 or to src
+    dup 1+ c@ swap 2 + c@ modrm<imm,
+  else
+    src CX not = if _err then
+    dup 1+ c@ swap c@ modrm1,
+  then ;
+$c1 4 $d3 op shl,
+$c1 5 $d3 op shr,
+
 \ Special
 : mov,
   prefix, isimm? if
@@ -130,7 +149,3 @@ $50 op push,
       $b8 tgtid or c, , asm$ else
       0 $c7 modrm<imm, then
   else src $89 modrm2, then ;
-
-\ SHL n times
-: shln, ( n -- )
-  4 $c1 modrm1, c, ;

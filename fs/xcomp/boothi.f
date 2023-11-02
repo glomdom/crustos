@@ -1,3 +1,5 @@
+bootfile xcomp/boothi.f
+
 0 value curfd   \ file descriptor of the file currently being read
 0 value fecho
 

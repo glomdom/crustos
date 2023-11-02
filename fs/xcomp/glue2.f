@@ -1,6 +1,6 @@
-\ Located between the FS part and boothi
+bootfile file/glue2.f
 
-S" fs/fatlo.f" floaded,
+\ Located between the FS part and boothi
 
 alias fatopen fopen
 alias fatgetc fgetc

@@ -64,7 +64,7 @@ create _ 10 c, ," 09AZaz__$$"
     of isSym1?
       r@ cc< 2dup isSym2? if
         2dup is<<>>? if
-          cc< dup '=' if
+          cc< dup '=' = if
             rot> swap 3 _writesym
           else
             to putback swap 2 _writesym then

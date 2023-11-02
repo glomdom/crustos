@@ -14,6 +14,8 @@ exprbinops 7 #eq
 binopand 42 #eq
 binopor 42 #eq
 binopxor 42 #eq
+binopshl 336 #eq
+binopshr 10 #eq
 boolops 0 #eq
 variables 82 #eq
 funcall 42 #eq
@@ -35,5 +37,6 @@ global 1234 #eq
 helloworld S" Hello, World!" #s=
 42 40 50 isinrange 1 #eq
 42 30 40 isinrange 0 #eq
+42 5 forloop 47 #eq
 
 testend

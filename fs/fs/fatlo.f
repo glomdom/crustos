@@ -1,3 +1,5 @@
+bootfile fs/fatlo.f
+
 \ The "low" part of a FAT12/FAT16 Filesystem Implementation
 
 \ This is a subset of FAT12/FAT16. It is designed to be embedded

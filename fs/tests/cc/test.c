@@ -1,3 +1,5 @@
+/* c compiler tests */
+
 // test const return
 int retconst() {
     return 42;
@@ -25,6 +27,14 @@ int binopor() {
 
 int binopxor() {
     return 43 ^ 1;
+}
+
+int binopshl() {
+    return 42 << 3;
+}
+
+int binopshr() {
+    return 42 >> 2;
 }
 
 int boolops() {
@@ -112,10 +122,6 @@ int array() {
     return *a + a[1] - *(a + 2);
 }
 
-/*
-    woah a comment test
- */
-
 int global1 = 1234;
 int global2[3] = {4, 5, 6};
 
@@ -135,4 +141,14 @@ int helloworld() {
 // lets begin calling the crust words!!
 int isinrange(int n, int l, int h) {
     return find("=><=")(n, l, h);
+}
+
+int forloop(int a, int b) {
+    int i;
+
+    for (i = 0; i < b; i++) {
+        a++;
+    }
+
+    return a;
 }

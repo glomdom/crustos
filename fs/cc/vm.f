@@ -88,6 +88,7 @@ operands value 'curop
 
 \ Managing Operands
 : hasop# optype VM_NONE = not _assert ;
+: isconst# optype VM_CONSTANT = _assert ;
 : noop# optype VM_NONE = _assert ;
 : const>op ( n -- ) noop# VM_CONSTANT optype! oparg! ;
 : constarray>op ( a -- ) noop# VM_CONSTANTARRAY optype! oparg! ;
@@ -207,6 +208,8 @@ operands value 'curop
 : vm&, binopprep and, opdeinit ;
 : vm|, binopprep or, opdeinit ;
 : vm^, binopprep xor, opdeinit ;
+: vm<<, binopprep isconst# shl, opdeinit ;
+: vm>>, binopprep isconst# shr, opdeinit ;
 : vmmul,
   reglvl 4 >= if edx push, then
   selop1 op>reg oparg AX = not if eax push, eax opAsm mov, then
@@ -261,11 +264,15 @@ operands value 'curop
 : _ ( 'w -- ) selop1 opAsm selop2 opAsm execute opdeinit selop1 vmboolify, ;
 : vm&&, ['] and, _ ;
 : vm||, ['] or, _ ;
-: vmjmp! ( 'jump_addr -- ) here over - 4 - swap ! ;
-: vmjmp, 0 jmp, here 4 - ;
+
+: ]vmjmp ( 'jump_addr -- ) here over - 4 - swap ! ;
+: _ here 4 - ;
+: vmjmp, ( a -- ) jmp, ;
+: vmjmp[, ( -- a ) 0 vmjmp, _ ;
 : vmjz, ( -- addr )
   selop1 opAsm opAsm test, opdeinit
   0 jz, here 4 - ;
-: vmjnz, ( -- addr )
-  selop1 opAsm opAsm test, opdeinit
-  0 jnz, here 4 - ;
+: vmjz, ( a -- ) selop1 opAsm opAsm test, opdeinit jz, ;
+: vmjz[, ( -- a ) 0 vmjz, _ ;
+: vmjnz, ( a -- ) selop1 opAsm opAsm test, opdeinit jnz, ;
+: vmjnz[, ( -- a ) 0 vmjnz, _ ;

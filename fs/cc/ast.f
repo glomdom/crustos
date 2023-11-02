@@ -22,19 +22,19 @@ POPSCNT stringlist POPTlist "++" "--"
 : poptoken ( opid -- tok ) POPTlist slistiter ;
 
 \ Binary Operators
-16 const BOPSCNT
+18 const BOPSCNT
 BOPSCNT stringlist BOPTlist
-"+" "-" "*" "/" "<" ">" "<=" ">=" "==" "!=" "&" "^" "|" "&&" "||" "="
+"+" "-" "*" "/" "<<" ">>" "<" ">" "<=" ">=" "==" "!=" "&" "^" "|" "&&" "||" "="
 
-create bopsprectbl  1 c, 1 c, 0 c, 0 c, 2 c, 2 c, 2 c, 2 c,
-                    3 c, 3 c, 4 c, 4 c, 4 c, 5 c, 5 c, 6 c,
+create bopsprectbl  1 c, 1 c, 0 c, 0 c, 2 c, 2 c, 3 c, 3 c, 3 c, 3 c,
+                    4 c, 4 c, 5 c, 5 c, 5 c, 6 c, 6 c, 7 c,
 
 : bopid ( tok -- opid? f )
   BOPTlist sfind dup 0< if drop 0 else 1 then ;
 : bopprec ( opid -- precedence ) BOPSCNT min bopsprectbl + c@ ;
 : boptoken ( opid -- tok ) BOPTlist slistiter ;
 
-15 const ASTIDCNT
+16 const ASTIDCNT
 0 const AST_DECLARE
 1 const AST_UNIT
 2 const AST_FUNCTION
@@ -50,6 +50,7 @@ create bopsprectbl  1 c, 1 c, 0 c, 0 c, 2 c, 2 c, 2 c, 2 c,
 12 const AST_IF
 13 const AST_STRLIT
 14 const AST_FUNCALL
+15 const AST_FOR
 
 \ It's important that decl.name and func.name have the same offset.
 \ Poor man's polymorphism..
@@ -72,7 +73,7 @@ NODESZ      ufield ast.funcall.funcname
 
 ASTIDCNT stringlist astidnames
 "declare" "unit" "function" "return" "constant" "stmts" "args" "ident"
-"unaryop" "postop" "binop" "list" "if" "str" "call"
+"unaryop" "postop" "binop" "list" "if" "str" "call" "for"
 
 0 value curunit
 
@@ -138,6 +139,7 @@ ASTIDCNT wordtbl astdatatbl ( node -- node )
 'w noop ( If )
 :w ( StrLit ) _[ dup ast.strlit.value stype _] ;
 'w noop ( FunCall )
+'w noop ( For )
 
 : printast ( node -- )
   ?dup not if ." null" exit then
@@ -317,8 +319,8 @@ current to parseExpression
 
 alias noop parseStatements ( funcnode -- )
 
-2 stringlist statementnames "return" "if"
-2 wordtbl statementhandler ( snode -- snode )
+3 stringlist statementnames "return" "if" "for"
+3 wordtbl statementhandler ( snode -- snode )
 :w ( return )
   dup AST_RETURN newnode ( snode rnode )
   nextt dup S" ;" s= if
@@ -333,6 +335,15 @@ alias noop parseStatements ( funcnode -- )
   nextt dup S" else" s= if ( sn ifn tok )
     drop parseStatements else
     to nexttputback drop then ;
+:w ( for ) dup AST_FOR newnode
+  nextt '(' expectChar
+  nextt parseExpression over addnode
+  nextt ';' expectChar
+  nextt parseExpression over addnode
+  nextt ';' expectChar
+  nextt parseExpression over addnode
+  nextt ')' expectChar
+  parseStatements ;
 
 : _ ( parentnode -- )
   nextt '{' expectChar AST_STATEMENTS newnode nextt
