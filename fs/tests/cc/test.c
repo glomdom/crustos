@@ -1,13 +1,12 @@
-/* c compiler tests */
+/* test a few simple C constructs */
 
-// test const return
+// just return a constant
 int retconst() {
     return 42;
 }
 
-// test unary
+// test unary op and that we don't require whitespace around symbols
 int neg() { return -$2a; }
-
 int bwnot() {
     return ~'*';
 }
@@ -61,7 +60,7 @@ int subber(int a, int b) {
     return a - b;
 }
 
-// arguments
+// are arguments, both constants and lvalues, properly passed?
 int plusone(int x) {
     return adder(1, x);
 }
@@ -75,23 +74,23 @@ int ptrget() {
 
 int ptrset() {
     int a = 42;
-    int *b = &a;
-
+    int* b = &a;
     *b = 54;
-    
+
     return a;
 }
 
 int condif(int x) {
     if (x == 42) {
-        x = x + 100;
+        x = x+100;
     } else {
-        x = x + 1;
+      x = x+1;
     }
 
     return x;
 }
 
+// test that ++ and -- modify the lvalue directly
 int incdec(int x) {
     ++x;
     --x;
@@ -99,6 +98,7 @@ int incdec(int x) {
     return ++x;
 }
 
+// test that the final "--" doesn't affect the result
 int incdecp(int x) {
     x++;
     x--;
@@ -106,20 +106,22 @@ int incdecp(int x) {
     return ++x--;
 }
 
+// test that parens override precedence
 int exprparens() {
     return (1 + 2) * 3;
 }
 
+// test that a void function doesn't add anything to PS
 void cnoop() { return; }
 
-int* ptrari(int* x) {
+// test that pointer arithmetics properly multiply operands by 2 or 4.
+int* ptrari(int *x) {
     return x + 1;
 }
 
 int array() {
     int a[3] = {42, 12, 2};
-
-    return *a + a[1] - *(a + 2);
+    return *a + a[1] - *(a+2);
 }
 
 int global1 = 1234;
@@ -129,26 +131,28 @@ int global() {
     return global1;
 }
 
+// "max" is a forth word defined in the system
 int sysword(int a, int b) {
     return max(a, b);
 }
 
-// TODO: use stype()
+// TODO: the effect would be better with stype(), but unfortunately, because
+// stype doesn't return an argument, the stackframe is broken when we call it.
+// When we begin supporting C signature in forth word annotations, then we can
+// revisit this and call stype().
 int helloworld() {
     return "Hello, World!";
 }
 
-// lets begin calling the crust words!!
+// Now let's put all this together an start calling fancy forth words!
 int isinrange(int n, int l, int h) {
     return find("=><=")(n, l, h);
 }
 
 int forloop(int a, int b) {
     int i;
-
-    for (i = 0; i < b; i++) {
+    for (i=0; i<b; i++) {
         a++;
     }
-
     return a;
 }
