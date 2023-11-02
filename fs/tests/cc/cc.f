@@ -5,12 +5,15 @@
 
 testbegin
 
-cc1<< tests/cc/test.c
+cc<< tests/cc/test.c
 
 retconst 42 #eq
 neg -42 #eq
 bwnot $ffffffd5 #eq
 exprbinops 7 #eq
+binopand 42 #eq
+binopor 42 #eq
+binopxor 42 #eq
 boolops 0 #eq
 variables 82 #eq
 funcall 42 #eq

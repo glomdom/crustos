@@ -75,6 +75,9 @@ BOPSCNT wordtbl bopgentblpre ( node -- node )
 'w noop ( >= )
 'w noop ( == )
 'w noop ( != )
+'w noop ( & )
+'w noop ( ^ )
+'w noop ( | )
 'w noop ( && )
 'w noop ( || )
 'w noop ( = )
@@ -90,6 +93,9 @@ BOPSCNT wordtbl bopgentblpost ( -- )
 :w ( >= ) abort" TODO" ;
 'w vm==, ( == )
 :w ( != ) abort" TODO" ;
+:w ( & ) vm&, ;
+:w ( ^ ) vm^, ;
+:w ( | ) vm|, ;
 'w vm&&, ( && )
 'w vm||, ( || )
 :w ( = ) vmmov, ;

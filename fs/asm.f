@@ -116,6 +116,7 @@ $81 5 $29 op sub,
 $f7 0 $85 op test,
 $81 4 $21 op and,
 $81 1 $09 op or,
+$81 6 $33 op xor,
 
 \ tgt or-ed in
 : op ( op -- ) doer c, does> c@ tgtid or c, asm$ ;

@@ -204,6 +204,9 @@ operands value 'curop
   selop2 hasop# opAsm ;
 : vmadd, binopprep add, opdeinit ;
 : vmsub, binopprep sub, opdeinit ;
+: vm&, binopprep and, opdeinit ;
+: vm|, binopprep or, opdeinit ;
+: vm^, binopprep xor, opdeinit ;
 : vmmul,
   reglvl 4 >= if edx push, then
   selop1 op>reg oparg AX = not if eax push, eax opAsm mov, then

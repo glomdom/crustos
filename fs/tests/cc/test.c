@@ -15,6 +15,18 @@ int exprbinops() {
     return 1 + 2 * 3;
 }
 
+int binopand() {
+    return $ff & 42;
+}
+
+int binopor() {
+    return 40 | 2;
+}
+
+int binopxor() {
+    return 43 ^ 1;
+}
+
 int boolops() {
     return 66 < 54 && 2 == 2;
 }
