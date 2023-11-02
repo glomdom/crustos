@@ -203,7 +203,7 @@ ASTIDCNT wordtbl gentbl ( node -- )
   ast.pop.opid popgentbl swap wexec ;
 \ See "Binary op resolution strategy" in opening comment
 :w ( BinaryOp )
-  _debug if ." binop: " dup printast nl> .ops then
+  _debug if ." binop: " dup printast nl> then
   selectedop >r ( node ) >r
   r@ bopgentblpre r@ ast.bop.opid wexec ( node )
   firstchild dup nextsibling swap ( n2 n1 )

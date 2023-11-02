@@ -36,6 +36,14 @@ int binopshr() {
     return 42 >> 2;
 }
 
+// test some bug i was having
+int binop1(int a, int b) {
+    int c;
+    c = a ^ b;
+
+    return c;
+}
+
 int boolops() {
     return 66 < 54 && 2 == 2;
 }

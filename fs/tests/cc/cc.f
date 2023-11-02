@@ -16,6 +16,7 @@ binopor 42 #eq
 binopxor 42 #eq
 binopshl 336 #eq
 binopshr 10 #eq
+2 3 binop1 1 #eq
 boolops 0 #eq
 variables 82 #eq
 funcall 42 #eq
