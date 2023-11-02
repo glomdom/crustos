@@ -31,7 +31,7 @@
 
 \ For usage example, see tests/cc/vm.f
 
-?f<< asm.f
+?f<< asm/i386.f
 
 : _err abort" vm err" ;
 : _assert not if _err then ;
@@ -49,11 +49,11 @@ create registers AX c, BX c, CX c, DX c, SI c, DI c,
 : curreg ( -- regid )
   reglvl REGCNT < if
     registers reglvl + c@ ( regid ) else
-    eax push, AX ( regid ) then ;
+    ax push, AX ( regid ) then ;
 : regallot ( -- regid ) curreg 1 to+ reglvl ;
 : regfree ( -- )
   reglvl not if abort" too many regs free" then
-  -1 to+ reglvl reglvl REGCNT >= if eax pop, then ;
+  -1 to+ reglvl reglvl REGCNT >= if ax pop, then ;
 
 \ Operand Definitions and Selection
 $00 const VM_NONE
@@ -101,12 +101,12 @@ operands value 'curop
 \ Resolve current operand as an assembler "src" argument
 : opAsm ( -- )
   optype case
-    VM_CONSTANT of = oparg i32 endof
+    VM_CONSTANT of = oparg i) endof
     VM_STACKFRAME of = abort" can't address VM_STACKFRAME directly " endof
     VM_REGISTER of = oparg r! endof
-    VM_*CONSTANT of = oparg [i32] endof
-    VM_*STACKFRAME of = opsf+ [ebp]+ endof
-    VM_*REGISTER of = oparg [r]! endof
+    VM_*CONSTANT of = oparg m) endof
+    VM_*STACKFRAME of = bp opsf+ d) endof
+    VM_*REGISTER of = oparg r! 0 d) endof
   _err endcase ;
 
 \ Force current operand to be copied to a register
@@ -118,8 +118,8 @@ operands value 'curop
     VM_REGISTER of = endof
     VM_*REGISTER of = endof
     VM_STACKFRAME of =
-      regallot dup r! ebp mov,
-      opsf+ if dup r! opsf+ i32 add, then
+      regallot dup r! bp mov,
+      opsf+ if dup r! opsf+ i) add, then
       oparg! VM_REGISTER optype! endof
     VM_*STACKFRAME of = _ VM_REGISTER optype! endof
     _err
@@ -132,7 +132,7 @@ operands value 'curop
     VM_STACKFRAME of = op>reg endof
     VM_*CONSTANT of = op>reg endof
     VM_*STACKFRAME of = op>reg endof
-    VM_*REGISTER of = oparg r! oparg [r]! mov, VM_REGISTER optype! endof
+    VM_*REGISTER of = oparg r! oparg r! 0 d) mov, VM_REGISTER optype! endof
   endcase ;
 
 \ Before doing an operation on two operands, we verify that they are compatible
@@ -178,33 +178,33 @@ operands value 'curop
 \ Generate function prelude code by allocating 'locsz' bytes on PS
 : vmprelude, ( argsz locsz -- )
   to locsz to argsz
-  locsz if ebp locsz i32 sub, then ;
+  locsz if bp locsz i) sub, then ;
 
 \ Deallocate locsz and argsz. If result is set, keep a 4b in here and push the result there
 : vmret,
   selop2 noop#
-  locsz argsz + selop1 optype if 4 - then
+  locsz argsz + selop1 optype if CELLSZ - then
   opderef
-  ?dup if ebp i32 add, then
-  optype if [ebp] opAsm mov, then
+  ?dup if bp i) add, then
+  optype if bp 0 d) opAsm mov, then
   ret, ;
 
-: callargallot, ( bytes -- ) dup to callsz ?dup if ebp i32 sub, then ;
+: callargallot, ( bytes -- ) dup to callsz ?dup if bp i) sub, then ;
 
 \ Call the address in current op and put the result of that call in `op`.
 : vmcall>op, ( -- )
   VM_*CONSTANT optype = if oparg VM_NONE optype! else opAsm then
   call, opdeinit
-  VM_REGISTER optype! regallot dup oparg! r! [ebp] mov,
-  ebp 4 i32 add, 0 to callsz ;
+  VM_REGISTER optype! regallot dup oparg! r! bp 0 d) mov,
+  bp 4 i) add, 0 to callsz ;
 
 \ Allocate a new register for active op and pop 4b from PS into it.
 : vmpspop,
-  noop# VM_REGISTER optype! regallot dup oparg! r! [ebp] mov,
-  ebp CELLSZ i32 add, ;
+  noop# VM_REGISTER optype! regallot dup oparg! r! bp 0 d) mov,
+  bp CELLSZ i) add, ;
 
 \ Push active op to PS.
-: vmpspush, opderef ebp CELLSZ i32 sub, [ebp] opAsm mov, opdeinit ;
+: vmpspush, opderef bp CELLSZ i) sub, bp 0 d) opAsm mov, opdeinit ;
 
 \ Code Generation - BinaryOps
 
@@ -219,16 +219,16 @@ operands value 'curop
 : vm<<, binopprep isconst# shl, opdeinit ;
 : vm>>, binopprep isconst# shr, opdeinit ;
 : vmmul,
-  reglvl 4 >= if edx push, then
-  selop1 op>reg oparg AX = not if eax push, eax opAsm mov, then
+  reglvl 4 >= if dx push, then
+  selop1 op>reg oparg AX = not if ax push, ax opAsm mov, then
   selop2 op>reg hasop# opAsm mul, opdeinit
-  selop1 oparg AX = not if opAsm eax mov, eax pop, then
-  reglvl 4 >= if edx pop, then ;
+  selop1 oparg AX = not if opAsm ax mov, ax pop, then
+  reglvl 4 >= if dx pop, then ;
 : vmmov,
   selop2 optype VM_CONSTANTARRAY = if
     selop1 optype VM_STACKFRAME = _assert
     *op>op selop2 oparg selop1 dup @ >r begin
-      opAsm 4 + dup @ i32 mov, oparg 4 + oparg! next
+      opAsm 4 + dup @ i) mov, oparg 4 + oparg! next
     drop selop2
   else
     maybederef selop1 opAsm selop2 opAsm mov, then
@@ -241,11 +241,11 @@ operands value 'curop
 : vmnot, ( ~ ) unaryopprep not, ;
 : vmboolify, unaryopprep
   opAsm test,
-  opAsm 0 i32 mov,
+  opAsm 0 i) mov,
   opAsm setnz, ;
 : vmboolnot, unaryopprep
   opAsm test,
-  opAsm 0 i32 mov,
+  opAsm 0 i) mov,
   opAsm setz, ;
 
 \ pre-inc/dec op1
@@ -266,7 +266,7 @@ operands value 'curop
 
 : _
   selop1 op>reg opAsm selop2 opAsm cmp, opdeinit
-  selop1 opAsm 0 i32 mov, ;
+  selop1 opAsm 0 i) mov, ;
 : vm<, _ opAsm setl, ;
 : vm==, _ opAsm setz, ;
 : _ ( 'w -- ) selop1 opAsm selop2 opAsm execute opdeinit selop1 vmboolify, ;
