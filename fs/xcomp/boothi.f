@@ -11,7 +11,7 @@ bootfile xcomp/boothi.f
   floaded 4 + fopen to curhdl
   to' in< @ >r ['] f< to in<
   begin maybeword ?dup if runword 0 else 1 then until
-  r> to in< curhdl fclose r> to curhdl ;
+  r> to in< curhdl dup 16 + @ execute r> to curhdl ;
 : f<< word fload ;
 : floaded? ( str -- f )
   floaded begin dup while 2dup 4 +

@@ -1,10 +1,15 @@
-\ I/O Aliases
+\ I/O
 
 \ Defines stdin (and soon stdout) which is used by many programs and words as
 \ their main I/O. In addition to those words, this subsystem also implements
 \ some convenience words to manage where they point to.
 
 ?f<< /lib/str.f
+
+: readbuf ( n hdl -- a? n ) dup @ execute ;
+: writebuf ( a n hdl -- n ) dup 4 + @ execute ;
+: flush ( hdl -- ) dup 8 + @ execute ;
+: getc ( fcursor -- c ) 1 swap readbuf if c@ else -1 then ;
 
 alias in< stdin ( -- c )
 

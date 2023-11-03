@@ -91,6 +91,12 @@ here const )fnbuf
 
 : upcase ( c -- c ) dup 'a' - 26 < if $df and then ;
 : fnbufclr fnbuf( FNAMESZ SPC fill ;
+: fnbuf! ( name -- )
+  A>r fnbufclr c@+ >r >A fnbuf( begin
+    Ac@+ dup '.' = if
+      2drop fnbuf( 8 + else
+      upcase swap c!+ then
+    dup )fnbuf = if leave then next drop r>A ;
 
 : _ ( -- direntry-or-0 )
   fatbuf( begin
@@ -110,6 +116,18 @@ here const )fnbuf
     dup FirstSectorOfCluster BPB_SecPerClus else \ root entry
     1 FirstRootDirSecNum RootDirSectors then
   readsector to bufcluster ;
+
+\ Get `direntry` address from FS ID `id`
+: getdirentry ( id -- direntry )
+  ?dup if
+    BPB_BytsPerSec /mod 1 readsector fatbuf( +
+    else rootdirentry( then ;
+
+\ Get `id` for `direntry`
+: getid ( direntry -- id ) fatbuf( - bufsec BPB_BytsPerSec * + ;
+
+: fatchild ( dirid name -- id )
+  fnbuf! getdirentry readdir findindir getid ;
 
 \ Find the parent directory of `path`, that is - go up directories in `path` until
 \ the last element is reached, but don't look for that last element, return
@@ -138,6 +156,7 @@ here const )fnbuf
 
 \ File cursor
 \ 12b IO handler prelude
+\ 8b file handle prelude
 \ 4b flags. all zeroes = free cursor
 \    b0 = used
 \    b1 = buffer is dirty
@@ -149,25 +168,24 @@ here const )fnbuf
 \ 4b file size
 \ Xb current cluster X=ClusterSize
 10 const FCURSORCNT \ Maximum number of opened files
-: FCursorSize ClusterSize 36 + ;
-: FCUR_flags ( fcur -- n ) 12 + @ ;
+: FCursorSize ClusterSize 44 + ;
+: FCUR_flags ( fcur -- n ) 20 + @ ;
 : FCUR_free? ( fcur -- f ) FCUR_flags not ;
 : FCUR_dirty? ( fcur -- f ) FCUR_flags 2 and ;
-: FCUR_flags! ( n fcur -- ) 12 + ! ;
-: FCUR_cluster ( fcur -- n ) 16 + @ ;
-: FCUR_cluster! ( n fcur -- ) 16 + ! ;
-: FCUR_clusteridx ( fcur -- n ) 20 + @ ;
-: FCUR_clusteridx! ( n fcur -- n ) 20 + ! ;
-: FCUR_pos ( fcur -- n ) 28 + @ ;
-: FCUR_pos! ( n fcur -- n ) 28 + ! ;
-: FCUR_pos+ ( n fcur -- ) 28 + +! ;
-: FCUR_size ( fcur -- n ) 32 + @ ;
-: FCUR_size! ( n fcur -- ) 32 + ! ;
-: FCUR_buf( ( fcur -- a ) 36 + ;
+: FCUR_flags! ( n fcur -- ) 20 + ! ;
+: FCUR_cluster ( fcur -- n ) 24 + @ ;
+: FCUR_cluster! ( n fcur -- ) 24 + ! ;
+: FCUR_clusteridx ( fcur -- n ) 28 + @ ;
+: FCUR_clusteridx! ( n fcur -- n ) 28 + ! ;
+: FCUR_pos ( fcur -- n ) 36 + @ ;
+: FCUR_pos! ( n fcur -- n ) 36 + ! ;
+: FCUR_pos+ ( n fcur -- ) 36 + +! ;
+: FCUR_size ( fcur -- n ) 40 + @ ;
+: FCUR_size! ( n fcur -- ) 40 + ! ;
+: FCUR_buf( ( fcur -- a ) 44 + ;
 : FCUR_)buf ( fcur -- a ) FCUR_buf( ClusterSize + ;
 : FCUR_bufpos ( fcur -- a ) dup FCUR_pos ClusterSize mod swap FCUR_buf( + ;
-: FCUR_dirent ( fcur -- dirent )
-  24 + @ BPB_BytsPerSec /mod 1 readsector fatbuf( + ;
+: FCUR_dirent ( fcur -- dirent ) 32 + @ getdirentry ;
 : FCUR_cluster0 ( fcur -- cl ) FCUR_dirent DIR_Cluster ;
 
 create fcursors( FCursorSize FCURSORCNT * allot0
@@ -208,12 +226,13 @@ create fcursors( FCursorSize FCURSORCNT * allot0
   rot min
   dup r> FCUR_pos+ ;
 
+: fatclose ( fcursor ) dup dup 8 + @ execute 0 swap FCUR_flags! ;
+
 : fatopenlo ( path -- fcursor )
   fatfindpath findfreecursor >r
   ['] fatreadbuf r@ ! ['] abort r@ 4 + ! ['] drop r@ 8 + !
+  ['] fatseek r@ 12 + ! ['] fatclose r@ 16 + !
   0 r@ FCUR_cluster! 1 r@ FCUR_flags!
-  dup fatbuf( - bufsec BPB_BytsPerSec * + r@ 24 + !
+  dup fatbuf( - bufsec BPB_BytsPerSec * + r@ 32 + !
   -1 r@ FCUR_clusteridx! 0 r@ FCUR_pos!
   DIR_FileSize r@ FCUR_size! r> ;
-
-: fatclose ( fcursor ) dup dup 8 + @ execute 0 swap FCUR_flags! ;

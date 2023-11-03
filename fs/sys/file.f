@@ -1,19 +1,21 @@
 \ File I/O
 ?f<< /lib/scratch.f
 ?f<< /lib/with.f
+?f<< /lib/io.f
 
 \ We need a private scratchpad here because some cursors can be quite
 \ long-lived. If we use the system scratchpad, short-lived data will overwrite
 \ our cursors.
 $200 scratchpad$ filespad
 
-: fgetc ( fcursor -- c ) 1 swap freadbuf if c@ else -1 then ;
+: fseek ( pos hdl -- ) dup 12 + @ execute ;
+: fclose ( hdl -- ) dup 16 + @ execute ;
 
 \ This creates a `f<` reader with the file descriptor embedded in it. This
 \ allows for a straightforward override of input/output words.
 : [f<] ( curfd -- word )
   filespad to' Scratchpad with[
-  scratch[ litn compile fgetc exit, ]scratch ]with ;
+  scratch[ litn compile getc exit, ]scratch ]with ;
 
 : .floaded floaded begin dup while dup 4 + stype nl> @ repeat drop ;
 : require word dup floaded? not if stype abort"  required" else drop then ;

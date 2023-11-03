@@ -41,4 +41,7 @@ dup FCUR_cluster0 0 #eq \ no cluster allocated yet
 dup S" 42" c@+ rot fatwritebuf 2 #eq fclose
 f<< /newfile 42 #eq
 
+\ Temporary
+0 S" lib" fatchild S" str.f" fatchild #
+
 testend
