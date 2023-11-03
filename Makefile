@@ -22,6 +22,14 @@ fatfs: $(ALL_SRCS)
 	@printf "%8s %s -> %s\n" MCOPY "fs/*" $@ 
 	@mcopy -sQ -i $@ fs/* ::
 
+pc.bin: crust
+	@./crust < buildpc.f 2> $@
+# @printf "%8s %s -> %s" CRUST buildpc.f $@
+
+.PHONY: pcrun
+pcrun: pc.bin
+	qemu-system-i386 -drive file=pc.bin,if=floppy,format=raw
+
 .PHONY: run
 run: crust
 	@stty -icanon -echo; ./crust; stty icanon echo
@@ -36,5 +44,5 @@ cloc:
 
 .PHONY: clean
 clean:
-	@rm -f $(TARGETS) crust.o fatfs boot.f
+	@rm -f $(TARGETS) crust.o fatfs boot.f pc.bin
 	@echo "cleaned crustOS"

@@ -214,6 +214,15 @@ defword '(emit)', 6, word__emit
 defword 'emit', 4, word_emit
     sysalias emit
 
+defword 'stderr', 6, word_stderr
+    mov eax, SYSCALL_WRITE
+    mov ebx, 2          ; stderr
+    mov ecx, ebp        ; buffer: top of PS, little endian
+    mov edx, 1          ; len
+    int 0x80
+    pspop eax
+    ret
+
 defword 'key', 3, word_key
     pspush 0
     mov eax, SYSCALL_READ

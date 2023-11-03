@@ -24,6 +24,7 @@ SZ32 value opsz
 0 value imm \ value of current immediate, if set
 0 value disp \ displacement value
 0 value sib \ value of the SIB byte
+0 value ORG \ base addr for jmp, and call, rel32 computing
 
 \ Utilities
 : asm$ SZ32 to opsz 1 to opdirec 3 to opmod -1 to opreg -1 to oprm 0 to imm? ;
@@ -166,7 +167,7 @@ $850f op jnz,
 \ the "opreg" for the modrm version.
 : op ( opcode -- ) doer , does> @ ( rel32? opcode -- )
   opreg 0< if
-    c, here - 4 - , asm$
+    c, here - ORG + 4 - , asm$
   else
     8 rshift opreg! $ff opmodrm,
   then ;
@@ -228,3 +229,6 @@ $50 op _push,
       $b0 opsz SZ8 = not 3 lshift or opreg or c, imm, asm$
     else $c7 c, 0 opreg! msd, imm, asm$ then
   else $88 opmodrm, then ;
+
+\ INT is special
+: int, ( n -- ) $cd c, c, ;
