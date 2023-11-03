@@ -51,8 +51,7 @@ extern int boolops() {
 }
 
 extern int variables() {
-    unsigned int foo = 40;
-    unsigned int _bar = 2;
+    unsigned int foo = 40, _bar = 2;
     _bar = foo + _bar;
 
     return foo + _bar;

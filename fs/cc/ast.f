@@ -346,12 +346,12 @@ current to parseExpression
   dup AST_FUNCTION parentnodeid ?dup _assert
   0 , over ast.decl.totsize swap to+ ast.func.sfsize ;
 
-: parseDeclareInit ( dnode tok -- node )
-  dup S" =" s= not if ';' expectChar drop exit then
+: parseDeclareInit ( dnode tok -- )
+  dup S" =" s= not if to nexttputback drop exit then
   drop nextt dup S" {" s= if
     drop parseList else
     parseExpression then
-  read; swap addnode ;
+  swap addnode ;
 
 : parseArgSpecs ( funcnode -- )
   AST_ARGSPECS newnode nextt
@@ -360,6 +360,12 @@ current to parseExpression
     expectType over parseDeclare drop
     nextt dup S" )" s= not while
     ',' expectChar nextt repeat 2drop ;
+
+: parseDeclareStatement ( type parentnode -- )
+  2dup parseDeclare nextt parseDeclareInit
+  nextt dup ',' isChar? if
+    drop parseDeclareStatement
+  else ';' expectChar 2drop then ;
 
 alias noop parseStatements ( funcnode -- )
 
@@ -399,7 +405,7 @@ alias noop parseStatements ( funcnode -- )
     dup S" }" s= not while
     dup statementnames sfind dup 0< if
       drop dup parseType if
-        nip over parseDeclare nextt parseDeclareInit else
+        nip over parseDeclareStatement else
         parseExpression over addnode read; then
     else nip statementhandler swap wexec then
 
@@ -422,7 +428,7 @@ current to parseStatements
 
     AST_DECLARE newnode rot> , ,
     r@ parseNbelem , 0 ,
-    nextt parseDeclareInit
+    nextt parseDeclareInit read;
   endcase ;
 
 : parseast ( -- )
