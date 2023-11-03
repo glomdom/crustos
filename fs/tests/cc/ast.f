@@ -1,5 +1,3 @@
-\ Tests for the C Compiler AST
-
 ?f<< tests/harness.f
 ?f<< cc/cc.f
 

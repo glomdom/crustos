@@ -2,6 +2,6 @@ bootfile file/glue2.f
 
 \ Located between the FS part and boothi
 
-alias fatopen fopen
-alias fatgetc fgetc
+alias fatopenlo fopen
+alias fatreadbuf freadbuf
 alias fatclose fclose

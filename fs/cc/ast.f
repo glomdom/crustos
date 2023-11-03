@@ -69,6 +69,7 @@ NODESZ 4 +  ufield ast.func.sfsize
 NODESZ 8 +  ufield ast.func.type
 NODESZ 12 + ufield ast.func.address
 NODESZ 16 + ufield ast.func.cursf       \ last SF offset computed
+NODESZ 20 + ufield ast.func.flags
 NODESZ      ufield ast.const.value
 NODESZ      ufield ast.ident.name
 NODESZ      ufield ast.uop.opid
@@ -82,6 +83,7 @@ ASTIDCNT stringlist astidnames
 "unaryop" "postop" "binop" "list" "if" "str" "call" "for" "push" "pop"
 
 0 value curunit
+0 value curextern
 
 : idname ( id -- str ) astidnames slistiter ;
 
@@ -407,11 +409,14 @@ current to parseStatements
 \\ Parse the next element in a `Unit` node
 : parseUnit ( unitnode tok -- )
   dup S" #[" s= if drop #[0 drop exit then
+  0 to curextern
+  dup S" extern" s= if drop nextt 1 to curextern then
   parseType _assert parseType*
   expectIdent rot nextt case
     S" (" of s=
       AST_FUNCTION newnode rot>
       , 0 , , 0 , 0 ,
+      curextern ,
       dup parseArgSpecs parseStatements
     endof
 

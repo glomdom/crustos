@@ -1,5 +1,3 @@
-\ Struct Testing
-
 ?f<< tests/harness.f
 ?f<< lib/struct.f
 

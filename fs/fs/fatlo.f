@@ -53,7 +53,7 @@ here const )fatbuf
   fatbuf( + ;
 : FAT12@ ( cluster -- entry )
   dup FAT12' w@ swap 1 and if 4 rshift else $fff and then ;
-: FAT16'
+: FAT16' ( cluster -- entry )
   << BPB_BytsPerSec /mod
   BPB_RsvdSecCnt + 0 readsector
   fatbuf( + ;
@@ -77,7 +77,7 @@ here const )fatbuf
 : DIR_Cluster ( direntry -- cluster ) 26 + w@ ;
 : DIR_Cluster! ( cluster direntry -- ) 26 + w! ;
 : DIR_FileSize ( direntry -- sz ) 28 + @ ;
-: DIR_FileSize! ( sz direntry -- ) 28 + ! ;
+: DIR_FileSize! ( sz direntry -- sz ) 28 + ! ;
 
 \ Dummy entry so that we can reference the root directory as a "directory"
 create rootdirentry( DIRENTRYSZ allot0
@@ -124,7 +124,7 @@ here const )fnbuf
       '.' of =
         A> fnbuf( = A> 1- c@ '.' = or if
           '.' Ac!+ else fnbuf( 8 + >A then
-        endof
+      endof
       '/' of = findindir readdir fnbufclr fnbuf( >A endof
       r@ upcase Ac!+ A> )fnbuf = if abort" filename too long" then
     endcase
@@ -137,31 +137,37 @@ here const )fnbuf
   fatfindpath curdir( DIRENTRYSZ move ;
 
 \ File cursor
+\ 12b IO handler prelude
 \ 4b flags. all zeroes = free cursor
 \    b0 = used
 \    b1 = buffer is dirty
 \ 4b current cluster in buf 0=nothing. the cluster is not actually read
 \    until the first position of the cluster is needed.
+\ 4b current cluster index. -1=nothing
 \ 4b offset, on disk, of direntry
 \ 4b cur pos (offset from beginning of file)
 \ 4b file size
 \ Xb current cluster X=ClusterSize
 10 const FCURSORCNT \ Maximum number of opened files
-: FCursorSize ClusterSize 20 + ;
-: FCUR_flags ( fcur -- n ) @ ;
+: FCursorSize ClusterSize 36 + ;
+: FCUR_flags ( fcur -- n ) 12 + @ ;
 : FCUR_free? ( fcur -- f ) FCUR_flags not ;
 : FCUR_dirty? ( fcur -- f ) FCUR_flags 2 and ;
-: FCUR_flags! ( n fcur -- ) ! ;
-: FCUR_cluster ( fcur -- n ) 4 + @ ;
-: FCUR_cluster! ( n fcur -- ) 4 + ! ;
-: FCUR_pos ( fcur -- n ) 12 + @ ;
-: FCUR_pos! ( n fcur -- n ) 12 + ! ;
-: FCUR_size ( fcur -- n ) 16 + @ ;
-: FCUR_size! ( n fcur -- ) 16 + ! ;
-: FCUR_buf( ( fcur -- a ) 20 + ;
+: FCUR_flags! ( n fcur -- ) 12 + ! ;
+: FCUR_cluster ( fcur -- n ) 16 + @ ;
+: FCUR_cluster! ( n fcur -- ) 16 + ! ;
+: FCUR_clusteridx ( fcur -- n ) 20 + @ ;
+: FCUR_clusteridx! ( n fcur -- n ) 20 + ! ;
+: FCUR_pos ( fcur -- n ) 28 + @ ;
+: FCUR_pos! ( n fcur -- n ) 28 + ! ;
+: FCUR_pos+ ( n fcur -- ) 28 + +! ;
+: FCUR_size ( fcur -- n ) 32 + @ ;
+: FCUR_size! ( n fcur -- ) 32 + ! ;
+: FCUR_buf( ( fcur -- a ) 36 + ;
+: FCUR_)buf ( fcur -- a ) FCUR_buf( ClusterSize + ;
 : FCUR_bufpos ( fcur -- a ) dup FCUR_pos ClusterSize mod swap FCUR_buf( + ;
 : FCUR_dirent ( fcur -- dirent )
-  8 + @ BPB_BytsPerSec /mod 1 readsector fatbuf( + ;
+  24 + @ BPB_BytsPerSec /mod 1 readsector fatbuf( + ;
 : FCUR_cluster0 ( fcur -- cl ) FCUR_dirent DIR_Cluster ;
 
 create fcursors( FCursorSize FCURSORCNT * allot0
@@ -180,33 +186,34 @@ create fcursors( FCursorSize FCURSORCNT * allot0
   over 2 - $fff6 > if abort" cluster out of range" then
   swap FirstSectorOfCluster swap BPB_SecPerClus swap readsectors ;
 
-\ Opens the specified `direntry` into one of the free cursors and returns
-\ the cursor
-: openfile ( direntry -- fcursor )
-  findfreecursor >r
-  0 r@ FCUR_cluster! 1 r@ FCUR_flags!
-  dup fatbuf( - bufsec BPB_BytsPerSec * + r@ 8 + !
-  -1 r@ 12 + ! DIR_FileSize r@ 16 + ! r> ;
-
-: fatopen ( path -- fcursor ) fatfindpath openfile ;
-
-alias drop fatflush ( fcursor -- )
-
 \ Set `fcursor` to `pos`. If new `pos` crosses cluster boundaries compared to current
 \ `pos`, flush current buffer and read a new sector from disk.
 : fatseek ( pos fcursor -- )
   over 0< if abort" can't seek to negative pos" then
-  over ClusterSize / over FCUR_pos ClusterSize / = not if
-    dup fatflush
-    over ClusterSize / over FCUR_cluster0
+  over ClusterSize / over FCUR_clusteridx = not if
+    dup dup 8 + @ execute >r
+    dup ClusterSize / dup r@ FCUR_clusteridx!
+    r@ FCUR_cluster0
     swap ?dup if >r begin FAT@ next then
-    2dup swap FCUR_buf( readcluster
-    over FCUR_cluster!
+    dup r@ FCUR_buf( readcluster
+    r@ FCUR_cluster! r>
   then FCUR_pos! ;
 
-: fatgetc ( fcursor -- c )
-  dup FCUR_pos 1+ over FCUR_size over <= if
-    2drop -1 exit then
-  over fatseek FCUR_bufpos c@ ;
+: fatreadbuf ( n fcursor -- a? n )
+  dup >r FCUR_size r@ FCUR_pos -
+  dup 1- 0< if 2drop r~ 0 exit then
+  min
+  r@ FCUR_pos r@ fatseek
+  r@ FCUR_bufpos r@ FCUR_)buf over -
+  rot min
+  dup r> FCUR_pos+ ;
 
-: fatclose ( fcursor ) dup fatflush 0 swap FCUR_flags! ;
+: fatopenlo ( path -- fcursor )
+  fatfindpath findfreecursor >r
+  ['] fatreadbuf r@ ! ['] abort r@ 4 + ! ['] drop r@ 8 + !
+  0 r@ FCUR_cluster! 1 r@ FCUR_flags!
+  dup fatbuf( - bufsec BPB_BytsPerSec * + r@ 24 + !
+  -1 r@ FCUR_clusteridx! 0 r@ FCUR_pos!
+  DIR_FileSize r@ FCUR_size! r> ;
+
+: fatclose ( fcursor ) dup dup 8 + @ execute 0 swap FCUR_flags! ;

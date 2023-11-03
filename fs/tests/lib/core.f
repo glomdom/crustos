@@ -1,5 +1,3 @@
-\ Tests for lib/core.f
-
 ?f<< tests/harness.f
 
 testbegin

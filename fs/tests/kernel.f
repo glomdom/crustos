@@ -1,5 +1,3 @@
-\ Testing native words and boot.f
-
 ?f<< tests/harness.f
 
 testbegin

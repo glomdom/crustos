@@ -1,4 +1,9 @@
-\ Tests for fs/fat
+?f<< tests/harness.f
+?f<< fs/fat.f
+
+: fatgetc ( fcursor -- c ) 1 swap fatreadbuf if c@ else -1 then ;
+
+testbegin
 
 \ These tests run on a few assumptions:
 \ 1. the boot fs is a FAT16 fs
@@ -6,20 +11,13 @@
 \ 3. it has only one FAT (no backup FAT)
 \ 4. it has a 512 sector size
 
-?f<< tests/harness.f
-?f<< fs/fat.f
-
-: readN ( fcursor n -- ) >r begin dup fatgetc drop next drop ;
-
-testbegin
-
-S" tests/fattest" fatfindpath
-openfile dup fatgetc 'T' #eq
-dup $ff readN
+S" tests/fattest" fatopen
+dup fatgetc 'T' #eq
+$100 over fatseek
 dup fatgetc 'f' #eq dup fatgetc 'o' #eq dup fatgetc 'o' #eq
-dup $fd readN
+$200 over fatseek
 dup fatgetc 'b' #eq
-dup $dfc readN
+$ffd over fatseek
 dup fatgetc 'E' #eq dup fatgetc 'O' #eq dup fatgetc 'F' #eq
 dup fatgetc -1 #eq
 fatclose
@@ -38,9 +36,9 @@ S" newfile" fatnewfile #
 S" /newfile" fatfindpath # \ yes we can
 
 \ lets try writing to it
-S" /newfile" fatfindpath openfile
+S" /newfile" fatopen
 dup FCUR_cluster0 0 #eq \ no cluster allocated yet
-'4' over fatputc '2' over fatputc fclose
+dup S" 42" c@+ rot fatwritebuf 2 #eq fclose
 f<< /newfile 42 #eq
 
 testend

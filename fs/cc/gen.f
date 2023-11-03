@@ -180,7 +180,8 @@ ASTIDCNT wordtbl gentbl ( node -- )
 :w ( Function )
   _debug if ." debugging: " dup ast.func.name stype nl> then
   ops$
-  dup ast.func.name entry ( fnode )
+  dup ast.func.flags 1 and if
+    dup ast.func.name entry then
   here over to ast.func.address
   dup ast.func.args ast.args.totsize over ast.func.locsize
   vmprelude, dup genchildren

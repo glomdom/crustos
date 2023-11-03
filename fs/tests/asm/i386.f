@@ -1,5 +1,3 @@
-\ Tests for asm/i386.f
-
 ?f<< /tests/harness.f
 ?f<< /asm/i386.f
 

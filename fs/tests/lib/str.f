@@ -2,7 +2,6 @@
 ?f<< lib/str.f
 
 testbegin
-\ Tests for str.f
 
 3 stringlist list "hello" "foo" "bar"
 

@@ -1,5 +1,3 @@
-\ Tests for crc.f
-
 ?f<< tests/harness.f
 ?f<< lib/crc.f
 

@@ -1,5 +1,3 @@
-\ C Compiler Tree Tests
-
 ?f<< tests/harness.f
 ?f<< cc/tree.f
 

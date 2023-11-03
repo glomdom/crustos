@@ -3,54 +3,54 @@
 #[ 42 const MYCONST ]#
 
 // just return a constant
-int retconst() {
+extern int retconst() {
     return #[ MYCONST c]# ;
 }
 
 // test unary op and that we don't require whitespace around symbols
-int neg() { return -$2a; }
-int bwnot() {
+extern int neg() { return -$2a; }
+extern int bwnot() {
     return ~'*';
 }
 
 // test binop precedence
-int exprbinops() {
+extern int exprbinops() {
     return 1 + 2 * 3;
 }
 
-int binopand() {
+extern int binopand() {
     return $ff & 42;
 }
 
-int binopor() {
+extern int binopor() {
     return 40 | 2;
 }
 
-int binopxor() {
+extern int binopxor() {
     return 43 ^ 1;
 }
 
-int binopshl() {
+extern int binopshl() {
     return 42 << 3;
 }
 
-int binopshr() {
+extern int binopshr() {
     return 42 >> 2;
 }
 
 // test some bug i was having
-int binop1(int a, int b) {
+extern int binop1(int a, int b) {
     int c;
     c = a ^ b;
 
     return c;
 }
 
-int boolops() {
+extern int boolops() {
     return 66 < 54 && 2 == 2;
 }
 
-int variables() {
+extern int variables() {
     unsigned int foo = 40;
     unsigned int _bar = 2;
     _bar = foo + _bar;
@@ -58,11 +58,11 @@ int variables() {
     return foo + _bar;
 }
 
-int funcall() {
+extern int funcall() {
     return retconst();
 }
 
-void pushpop() {
+extern void pushpop() {
     pspush(pspop());
 }
 
@@ -70,23 +70,23 @@ int adder(int a, int b) {
     return a + b;
 }
 
-int subber(int a, int b) {
+extern int subber(int a, int b) {
     return a - b;
 }
 
 // are arguments, both constants and lvalues, properly passed?
-int plusone(int x) {
+extern int plusone(int x) {
     return adder(1, x);
 }
 
-int ptrget() {
+extern int ptrget() {
     int a = 42;
     int *b = &a;
 
     return *b;
 }
 
-int ptrset() {
+extern int ptrset() {
     int a = 42;
     int* b = &a;
     *b = 54;
@@ -94,7 +94,7 @@ int ptrset() {
     return a;
 }
 
-int condif(int x) {
+extern int condif(int x) {
     if (x == 42) {
         x = x+100;
     } else {
@@ -105,7 +105,7 @@ int condif(int x) {
 }
 
 // test that ++ and -- modify the lvalue directly
-int incdec(int x) {
+extern int incdec(int x) {
     ++x;
     --x;
 
@@ -113,7 +113,7 @@ int incdec(int x) {
 }
 
 // test that the final "--" doesn't affect the result
-int incdecp(int x) {
+extern int incdecp(int x) {
     x++;
     x--;
 
@@ -121,38 +121,39 @@ int incdecp(int x) {
 }
 
 // test that parens override precedence
-int exprparens() {
+extern int exprparens() {
     return (1 + 2) * 3;
 }
 
 // test that a void function doesn't add anything to PS
-void cnoop() {}
+extern void cnoop() {}
 
 // test that pointer arithmetics properly multiply operands by 2 or 4.
-int* ptrari(int *x) {
+extern int* ptrari(int *x) {
     return x + 1;
 }
 
-int array() {
+extern int array() {
     int a[3] = {42, 12, 2};
+    
     return *a + a[1] - *(a+2);
 }
 
 int global1 = 1234;
 int global2[3] = {4, 5, 6};
 
-int global() {
+extern int global() {
     return global1;
 }
 
 // "max" is a forth word defined in the system
-int sysword(int a, int b) {
+extern int sysword(int a, int b) {
     max(a, b);
 
     return pspop();
 }
 
-void helloworld() {
+extern void helloworld() {
     stype("Hello, World!");
 }
 
@@ -160,16 +161,18 @@ void helloworld() {
 // Here we see the power of macros in action. Let's say we're trying to call
 // the system word `=><=`. It's not a valid C identifier, so we use macros
 // to trick the parser into accepting it.
-int isinrange(int n, int l, int h) {
+extern int isinrange(int n, int l, int h) {
     #[ S" =><=" i]# (n, l, h);
 
     return pspop();
 }
 
-int forloop(int a, int b) {
+extern int forloop(int a, int b) {
     int i;
+
     for (i=0; i<b; i++) {
         a++;
     }
+
     return a;
 }

@@ -1,5 +1,3 @@
-\ C Compiler Virtual Machine Tests
-
 ?f<< tests/harness.f
 ?f<< cc/vm.f
 

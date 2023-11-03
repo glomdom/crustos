@@ -75,13 +75,12 @@ $ffff const EOC
   over 2 - $fff6 > if abort" cluster out of range!" then
   swap FirstSectorOfCluster swap BPB_SecPerClus swap writesectors ;
 
-: _ ( fcursor -- ) \ fatflush
+: fatflush ( fcursor -- )
   dup FCUR_dirty? not if drop exit then
   dup FCUR_cluster over FCUR_buf( writecluster
   dup FCUR_dirent over FCUR_size swap DIR_FileSize!
   writecursector
   dup FCUR_flags $fffffffd and swap FCUR_flags! ;
-current to fatflush
 
 \ Grow `fcursor` to `newsz`, if needed.
 : fatgrow ( newsz fcursor -- )
@@ -95,8 +94,12 @@ current to fatflush
 
 \ Write `c` to `fcursor` and advance the position by 1, growing the file
 \ if needed.
-: fatputc ( c fcursor -- )
-  dup >r FCUR_pos 1+ dup 1+ r@ fatgrow
-  r@ fatseek
+: fatwritebuf ( buf n fcursor -- n )
+  dup >r FCUR_pos over + r@ fatgrow
+  r@ FCUR_pos r@ fatseek
   r@ FCUR_flags 2 or r@ FCUR_flags!
-  r> FCUR_bufpos c! ;
+  r@ FCUR_)buf r@ FCUR_bufpos -
+  min r> FCUR_bufpos swap
+  dup >r move r> ;
+
+: fatopen fatopenlo ['] fatwritebuf over 4 + ! ['] fatflush over 8 + ! ;

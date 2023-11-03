@@ -7,6 +7,8 @@
 \ our cursors.
 $200 scratchpad$ filespad
 
+: fgetc ( fcursor -- c ) 1 swap freadbuf if c@ else -1 then ;
+
 \ This creates a `f<` reader with the file descriptor embedded in it. This
 \ allows for a straightforward override of input/output words.
 : [f<] ( curfd -- word )

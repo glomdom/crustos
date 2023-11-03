@@ -3,7 +3,7 @@
 // TODO: use >>=
 // TODO: replace if (b == 1) with if (b)
 
-unsigned int crc32(unsigned int crc, int c) {
+extern unsigned int crc32(unsigned int crc, int c) {
     unsigned int i;
     unsigned int b;
 
