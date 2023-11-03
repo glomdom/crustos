@@ -53,6 +53,7 @@ expected res 4 []= #
 
 n1 n1 4 nextnodeid n4 #eq drop
 n4 n4 4 nextnodeid 0 #eq drop
+n3 n1 childindex 1 #eq
 
 create expected 2 c, 4 c,
 create res n2 traverse

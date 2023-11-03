@@ -59,12 +59,12 @@ create bopsprectbl  1 c, 1 c, 0 c, 0 c, 2 c, 2 c, 3 c, 3 c, 3 c, 3 c,
 NODESZ      ufield ast.decl.name
 NODESZ 4 +  ufield ast.decl.type
 NODESZ 8 +  ufield ast.decl.nbelem
-NODESZ 12 + ufield ast.decl.sfoff       \ for global vars, this is an absolute address
+NODESZ 12 + ufield ast.decl.address       \ for variables and args, `address` is the frame offset
 NODESZ      ufield ast.func.name
 NODESZ 4 +  ufield ast.func.sfsize
 NODESZ 8 +  ufield ast.func.type
 NODESZ 12 + ufield ast.func.address
-NODESZ 16 + ufield ast.func.cursf       \ last sfoff computed
+NODESZ 16 + ufield ast.func.cursf       \ last SF offset computed
 NODESZ      ufield ast.const.value
 NODESZ      ufield ast.ident.name
 NODESZ      ufield ast.uop.opid
@@ -109,12 +109,18 @@ ASTIDCNT stringlist astidnames
   firstchild 2dup _ ?dup if
     nip nip else nextsibling _ then ;
 
-: ast.func.argsize ( fnode -- size-in-bytes )
-  firstchild firstchild 0 begin
+: ast.func.args ( fnode -- anode )
+  firstchild dup nodeid AST_ARGSPECS = _assert ;
+
+: ast.args.totsize ( fnode -- size-in-bytes )
+  firstchild 0 begin
     over while
     over nodeid AST_DECLARE = _assert
     over ast.decl.totsize +
     swap nextsibling swap repeat nip ;
+
+: ast.func.locsize ( fnode -- size-in-bytes )
+  dup ast.func.sfsize swap ast.func.args ast.args.totsize - ;
 
 \ Is `snode` a function body?
 : ast.stmts.funcbody? ( snode -- f ) parentnode nodeid AST_FUNCTION = ;
@@ -127,7 +133,7 @@ ASTIDCNT wordtbl astdatatbl ( node -- node )
   dup ast.decl.type printtype spc>
   dup ast.decl.name stype
   dup ast.decl.nbelem dup 1 > if _[ .x _] else drop then spc>
-  dup ast.decl.sfoff .x1 _] ;
+  dup ast.decl.address .x1 _] ;
 'w noop ( Unit )
 :w ( Function ) _[
   dup ast.func.type printtype spc>
@@ -158,7 +164,7 @@ ASTIDCNT wordtbl astdatatbl ( node -- node )
     ')' emit then ;
 
 : newnode ( parent nodeid -- newnode )
-  createnode ( parent node ) dup rot addnode ( node ) ;
+  createnode dup rot addnode ( node ) ;
 
 : _err ( -- ) abort" ast error" ;
 : _assert ( f -- ) not if _err then ;
@@ -249,7 +255,7 @@ alias noop parseExpression ( tok -- node )
 
     S" pspop" of s=
       nextt '(' expectChar nextt ')' expectChar
-      AST_PSPOP createnode
+      AST_PSPOP createnode parsePostfixOp
     endof
 
     of uopid

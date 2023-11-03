@@ -145,20 +145,20 @@ int global() {
 
 // "max" is a forth word defined in the system
 int sysword(int a, int b) {
-    return max(a, b);
+    max(a, b);
+    return pspop();
 }
 
-// TODO: the effect would be better with stype(), but unfortunately, because
-// stype doesn't return an argument, the stackframe is broken when we call it.
-// When we begin supporting C signature in forth word annotations, then we can
-// revisit this and call stype().
-int helloworld() {
-    return "Hello, World!";
+void helloworld() {
+    stype("Hello, World!");
 }
 
 // Now let's put all this together an start calling fancy forth words!
 int isinrange(int n, int l, int h) {
-    return find("=><=")(n, l, h);
+    find("=><=");
+    pspop()(n, l, h);
+
+    return pspop();
 }
 
 int forloop(int a, int b) {

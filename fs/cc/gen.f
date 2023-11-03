@@ -51,16 +51,19 @@
 : _err ( -- ) abort" gen error" ;
 : _assert ( f -- ) not if _err then ;
 
+\ Result of the last identified call.
+0 value lastidentfound
+
 alias noop gennode ( node -- ) \ forward declaration
 
 : genchildren ( node -- )
   firstchild ?dup if begin dup gennode nextsibling ?dup not until then ;
 
 : spit ( a u -- ) A>r >r >A begin Ac@+ .x1 next r>A ;
-: lv>decl ( inode -- dnode-or-0 )
+: identfind ( inode -- dnode-or-fnode-or-0 )
   dup ast.ident.name dup rot AST_FUNCTION parentnodeid ( name name fnode )
   ast.func.finddecl ?dup not if ( name )
-    ast.unit.find else nip then ;
+    ast.unit.find else nip then dup to lastidentfound ;
 
 \ Multiply the value of "node" by a factor of "n"
 \ TODO: support lvalues and expressions
@@ -73,7 +76,7 @@ alias noop gennode ( node -- ) \ forward declaration
 \ Return the "pointer arithmetic size" of "node".
 : node*arisz ( node -- n )
   dup nodeid AST_IDENT = if ( node )
-    lv>decl ?dup _assert dup ast.decl.type ( dnode type )
+    identfind ?dup _assert dup ast.decl.type ( dnode type )
     swap ast.decl.nbelem ( nbelem ) 1 > if type*lvl+ then *ariunitsz ( n ) else
     drop 1 then ;
 
@@ -146,29 +149,28 @@ BOPSCNT wordtbl bopgentblpost ( -- )
 'w vm||, ( || )
 :w ( = ) vmmov, ;
 
-: decl>op ( dnode -- )
-  dup ast.decl.isglobal? if
-    ast.decl.sfoff mem>op
-  else
-    dup ast.decl.sfoff sf+>op ( dnode )
-    ast.decl.nbelem ( nbelem ) 1 > if &op>op then
-  then ;
+: decl>op ( dnode -- ) case
+    of ast.decl.isglobal? r@ ast.decl.address mem>op endof
+    of ast.decl.isarg? r@ ast.decl.address ps+>op endof
+    r@ ast.decl.address sf+>op
+    r@ ast.decl.nbelem 1 > if &op>op then
+  endcase ;
 
 ASTIDCNT wordtbl gentbl ( node -- )
 :w ( Declare ) dup ast.decl.isglobal? if
-    here over to ast.decl.sfoff
+    here over to ast.decl.address
     dup ast.decl.totsize allot
     dup firstchild nodeid case ( dnode )
       AST_CONSTANT of =
         dup firstchild ast.const.value
-        over ast.decl.sfoff !
+        over ast.decl.address !
       endof
     endcase drop
   else ( node )
     dup >r AST_FUNCTION parentnodeid dup ast.func.cursf ( fnode cursf )
     r@ ast.decl.totsize - ( fnode cursf )
     dup rot to ast.func.cursf ( cursf )
-    r@ to ast.decl.sfoff ( )
+    r@ to ast.decl.address ( )
     r@ firstchild ?dup if ( node )
       selop1 gennode ( value in op1 ) op1<>op2
       selop1 r@ decl>op vmmov,
@@ -178,11 +180,10 @@ ASTIDCNT wordtbl gentbl ( node -- )
 :w ( Function )
   _debug if ." debugging: " dup ast.func.name stype nl> then
   ops$
-  dup ast.func.sfsize over to ast.func.cursf
   dup ast.func.name entry ( fnode )
   here over to ast.func.address
-  over ast.func.argsize over ast.func.sfsize over - ( argsz locsz ) vmprelude,
-  dup genchildren
+  dup ast.func.args ast.args.totsize over ast.func.locsize
+  vmprelude, dup genchildren
   ast.func.cursf not _assert \ all decl nodes have been "processed"
   _debug if current here current - spit nl> then ;
 :w ( Return ) genchildren vmret, ;
@@ -193,8 +194,11 @@ ASTIDCNT wordtbl gentbl ( node -- )
   dup ast.stmts.funcbody? if
     lastchild ?dup if nodeid AST_RETURN = not if vmret, then else vmret, then
   else drop then ;
-'w genchildren ( ArgSpecs )
-:w ( Ident ) dup lv>decl ?dup if ( inode dnode )
+:w ( ArgSpecs )
+  dup ast.args.totsize over parentnode to ast.func.cursf
+  dup genchildren
+  parentnode dup ast.func.locsize swap to ast.func.cursf ;
+:w ( Ident ) dup identfind ?dup if ( inode dnode )
     nip decl>op else ( inode )
     ast.ident.name find ?dup _assert mem>op then ;
 :w ( UnaryOp )
@@ -240,15 +244,18 @@ ASTIDCNT wordtbl gentbl ( node -- )
   1+ move, ( jaddr saddr ) const>op ]vmjmp ;
 :w ( FunCall )
   \ Resolve address node
+  0 to lastidentfound
   dup firstchild gennode \ op has call address
-  oppush rot ( oparg optype node )
+  lastidentfound swap
+  oppush rot
   \ pass arguments
   dup childcount 1- 4 * callargallot,
   firstchild nextsibling ?dup if -4 swap begin ( cursf+ argnode )
-    dup selop1 gennode swap dup selop2 sf+>op op1<>op2 vmmov, selop1 opdeinit
+    dup selop1 gennode swap dup selop2 ps+>op op1<>op2 vmmov, selop1 opdeinit
     4 - swap nextsibling ?dup not until drop then
   \ call
-  oppop vmcall>op, ;
+  oppop vmcall, ?dup if dup nodeid AST_FUNCTION = if
+    ast.func.type if selop1 vmpspop, then else drop then then ;
 :w ( For )
   firstchild dup _assert dup gennode ops$ \ initialization
   here swap

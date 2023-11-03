@@ -39,8 +39,8 @@ test2 8 #eq
 ops$
 code test3
   8 0 vmprelude,
-  selop1 4 sf+>op
-  selop2 0 sf+>op
+  selop1 4 ps+>op
+  selop2 0 ps+>op
   vmsub,
   vmret,
 

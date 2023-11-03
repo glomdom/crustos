@@ -58,12 +58,13 @@ create registers AX c, BX c, CX c, DX c, SI c, DI c,
 \ Operand Definitions and Selection
 $00 const VM_NONE
 $01 const VM_CONSTANT       \ 42
-$02 const VM_STACKFRAME     \ ebp+x
-$03 const VM_REGISTER       \ eax
-$04 const VM_CONSTANTARRAY  \ pointer to an array with the 1st elem being length
+$02 const VM_STACKFRAME     \ esp+x
+$04 const VM_REGISTER       \ eax
+$05 const VM_CONSTANTARRAY  \ pointer to an array with the 1st elem being length
 $11 const VM_*CONSTANT      \ [1234]
-$12 const VM_*STACKFRAME    \ [ebp+x]
-$13 const VM_*REGISTER      \ [eax]
+$12 const VM_*STACKFRAME    \ [esp+x]
+$13 const VM_*ARGSFRAME     \ [ebp+x]
+$14 const VM_*REGISTER      \ [eax]
 
 \ 2 operands, 2 fields each (type, arg) - 4b per field
 create operands 16 allot0
@@ -93,6 +94,7 @@ operands value 'curop
 : const>op ( n -- ) noop# VM_CONSTANT optype! oparg! ;
 : constarray>op ( a -- ) noop# VM_CONSTANTARRAY optype! oparg! ;
 : sf+>op ( off -- ) noop# VM_*STACKFRAME optype! oparg! ;
+: ps+>op ( off - ) noop# VM_*ARGSFRAME optype! oparg! ;
 : mem>op ( off -- ) noop# VM_*CONSTANT optype! oparg! ;
 
 \ Get current operand SF offset, adjusted with callsz
@@ -105,7 +107,8 @@ operands value 'curop
     VM_STACKFRAME of = abort" can't address VM_STACKFRAME directly " endof
     VM_REGISTER of = oparg r! endof
     VM_*CONSTANT of = oparg m) endof
-    VM_*STACKFRAME of = bp opsf+ d) endof
+    VM_*STACKFRAME of = sp oparg d) endof
+    VM_*ARGSFRAME of = bp opsf+ d) endof
     VM_*REGISTER of = oparg r! 0 d) endof
   _err endcase ;
 
@@ -118,10 +121,11 @@ operands value 'curop
     VM_REGISTER of = endof
     VM_*REGISTER of = endof
     VM_STACKFRAME of =
-      regallot dup r! bp mov,
-      opsf+ if dup r! opsf+ i) add, then
+      regallot dup r! sp mov,
+      oparg if dup r! oparg i) add, then
       oparg! VM_REGISTER optype! endof
     VM_*STACKFRAME of = _ VM_REGISTER optype! endof
+    VM_*ARGSFRAME of = _ VM_REGISTER optype! endof
     _err
   endcase ;
 
@@ -132,14 +136,15 @@ operands value 'curop
     VM_STACKFRAME of = op>reg endof
     VM_*CONSTANT of = op>reg endof
     VM_*STACKFRAME of = op>reg endof
+    VM_*ARGSFRAME of = op>reg endof
     VM_*REGISTER of = oparg r! oparg r! 0 d) mov, VM_REGISTER optype! endof
   endcase ;
 
 \ Before doing an operation on two operands, we verify that they are compatible
 \ e.g. we can't have two VM_*REGISTER ops - one of them has to be dereferenced (it HAS to be op2)
 : maybederef
-  selop1 optype VM_*REGISTER = optype $f and VM_STACKFRAME = or if
-    selop2 opderef then ;
+  selop1 optype VM_*REGISTER = optype $f and VM_STACKFRAME = or
+  optype VM_*ARGSFRAME = or if selop2 opderef then ;
 
 \ If possible, transform current operand in its reference
 : &op>op
@@ -156,6 +161,7 @@ operands value 'curop
     VM_*CONSTANT of = op>reg *op>op endof
     VM_STACKFRAME of = VM_*STACKFRAME optype! endof
     VM_*STACKFRAME of = op>reg *op>op endof
+    VM_*ARGSFRAME of = op>reg *op>op endof
     VM_REGISTER of = VM_*REGISTER optype! endof
     VM_*REGISTER of = opderef VM_*REGISTER optype! endof
   _err endcase ;
@@ -178,13 +184,14 @@ operands value 'curop
 \ Generate function prelude code by allocating 'locsz' bytes on PS
 : vmprelude, ( argsz locsz -- )
   to locsz to argsz
-  locsz if bp locsz i) sub, then ;
+  locsz if sp locsz i) sub, then ;
 
 \ Deallocate locsz and argsz. If result is set, keep a 4b in here and push the result there
 : vmret,
   selop2 noop#
-  locsz argsz + selop1 optype if CELLSZ - then
+  argsz selop1 optype if CELLSZ - then
   opderef
+  locsz if sp locsz i) add, then
   ?dup if bp i) add, then
   optype if bp 0 d) opAsm mov, then
   ret, ;
@@ -192,11 +199,9 @@ operands value 'curop
 : callargallot, ( bytes -- ) dup to callsz ?dup if bp i) sub, then ;
 
 \ Call the address in current op and put the result of that call in `op`.
-: vmcall>op, ( -- )
+: vmcall, ( -- )
   VM_*CONSTANT optype = if oparg VM_NONE optype! else opAsm then
-  call, opdeinit
-  VM_REGISTER optype! regallot dup oparg! r! bp 0 d) mov,
-  bp 4 i) add, 0 to callsz ;
+  call, opdeinit 0 to callsz ;
 
 \ Allocate a new register for active op and pop 4b from PS into it.
 : vmpspop,
@@ -256,7 +261,7 @@ operands value 'curop
 \ post-inc/dec op1
 \ TODO: we dont use both ops for this and thus allow post-inc/dec and post-dec/inc to run on either on the 2 ops
 : _ ( 'w -- )
-  selop1 optype VM_*STACKFRAME = _assert
+  selop1 optype VM_*STACKFRAME = optype VM_*ARGSFRAME = or _assert
   selop2 noop# selop1 optype oparg selop2 oparg! optype!
   selop1 op>reg selop2 opAsm execute opdeinit selop1 ;
 : vmop++, ['] inc, _ ;

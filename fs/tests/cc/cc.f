@@ -36,7 +36,7 @@ cnoop scnt 0 #eq
 array 52 #eq
 global 1234 #eq
 42 142 sysword 142 #eq
-helloworld S" Hello, World!" #s=
+capture helloworld S" Hello, World!" #s=
 42 40 50 isinrange 1 #eq
 42 30 40 isinrange 0 #eq
 42 5 forloop 47 #eq

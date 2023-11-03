@@ -25,6 +25,12 @@
 : nodedepth ( node -- n ) firstchild ?dup if nodedepth 1+ else 0 then ;
 : childcount ( node -- n )
   0 swap firstchild ?dup if begin swap 1+ swap nextsibling ?dup not until then ;
+: childindex ( child node -- idx )
+  swap >r 0 swap firstchild begin
+    ?dup while
+    r@ over = not while
+    swap 1+ swap nextsibling repeat
+    drop r~ else abort" child not found" then ;
 : createnode ( id -- node ) here >r , 16 allot0 r> ;
 : addnode ( node parent -- )
   2dup swap to parentnode ( node parent )
