@@ -23,12 +23,13 @@ POPSCNT stringlist POPTlist "++" "--"
 : poptoken ( opid -- tok ) POPTlist slistiter ;
 
 \ Binary Operators
-18 const BOPSCNT
+20 const BOPSCNT
 BOPSCNT stringlist BOPTlist
 "+" "-" "*" "/" "<<" ">>" "<" ">" "<=" ">=" "==" "!=" "&" "^" "|" "&&" "||" "="
+"<<=" ">>="
 
 create bopsprectbl  1 c, 1 c, 0 c, 0 c, 2 c, 2 c, 3 c, 3 c, 3 c, 3 c,
-                    4 c, 4 c, 5 c, 5 c, 5 c, 6 c, 6 c, 7 c,
+                    4 c, 4 c, 5 c, 5 c, 5 c, 6 c, 6 c, 7 c, 7 c, 7 c,
 
 : bopid ( tok -- opid? f )
   BOPTlist sfind dup 0< if drop 0 else 1 then ;

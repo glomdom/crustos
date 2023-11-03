@@ -128,6 +128,8 @@ BOPSCNT wordtbl bopgentblpre ( node -- node )
 'w noop ( && )
 'w noop ( || )
 'w noop ( = )
+'w noop ( <<= )
+'w noop ( >>= )
 
 BOPSCNT wordtbl bopgentblpost ( -- )
 'w vmadd, ( + )
@@ -148,6 +150,8 @@ BOPSCNT wordtbl bopgentblpost ( -- )
 'w vm&&, ( && )
 'w vm||, ( || )
 :w ( = ) vmmov, ;
+'w vm<<=,
+'w vm>>=,
 
 : decl>op ( dnode -- ) case
     of ast.decl.isglobal? r@ ast.decl.address mem>op endof

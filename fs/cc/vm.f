@@ -239,6 +239,11 @@ operands value 'curop
     maybederef selop1 opAsm selop2 opAsm mov, then
   opdeinit ;
 
+: binop=prep ( -- )
+  selop1 opAsm selop2 hasop# opAsm ;
+: vm<<=, binop=prep isconst# shl, opdeinit ;
+: vm>>=, binop=prep isconst# shr, opdeinit ;
+
 \ Code Generation - UnaryOps
 
 : unaryopprep op>reg opAsm ;

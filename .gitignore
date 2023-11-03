@@ -3,4 +3,5 @@
 /crust
 /fatfs
 /boot.f
+/pc.bin
 *.o

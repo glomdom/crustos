@@ -1,5 +1,3 @@
-// TODO: use >>=
-
 extern unsigned int crc32(unsigned int crc, int c) {
     unsigned int i, b;
 
@@ -11,7 +9,7 @@ extern unsigned int crc32(unsigned int crc, int c) {
             crc = crc ^ $EDB88320;
         }
 
-        c = c >> 1;
+        c >>= 1;
     }
 
     return crc;
