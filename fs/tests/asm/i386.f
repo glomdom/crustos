@@ -56,8 +56,7 @@ foo5 127 #eq
 
 \ push/pop
 code foo6
-  ax 42 i) mov,
-  ax push,
+  42 i) push,
   dx pop,
   bp 4 i) sub,
   bp 0 d) dx mov,
@@ -70,5 +69,15 @@ code foo7
   bp 0 d) 42 i) mov,
   ret,
 foo7 42 #eq
+
+\ Displacement for ESP
+code foo8
+  42 i) push,
+  ax sp 0 d) mov,
+  sp 4 i) add,
+  bp 4 i) sub,
+  bp 0 d) ax mov,
+  ret,
+foo8 42 #eq
 
 testend

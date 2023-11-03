@@ -8,6 +8,7 @@
 0 const AL    1 const CL    2 const DL    3 const BL
 4 const AH    5 const CH    6 const DH    7 const BH
 5 const MEM \ mod 0 + r/m 5 == abs memory
+4 const SIB \ mod 0/1/2 + r/m 4 == SIB
 
 \ Size modes
 0 const SZ32
@@ -22,12 +23,14 @@ SZ32 value opsz
 0 value imm? \ are we in immediate mode?
 0 value imm \ value of current immediate, if set
 0 value disp \ displacement value
+0 value sib \ value of the SIB byte
 
 \ Utilities
 : asm$ SZ32 to opsz 1 to opdirec 3 to opmod -1 to opreg -1 to oprm 0 to imm? ;
 : _err abort" argument error" ;
 : _assert not if _err then ;
 : w, here w! 2 allot ;
+: isbyte? ( n -- f ) $100 < ;
 
 \ Force a value into `opreg`. If `opreg` is -1, we simply set it, but if it's set,
 \ then we move `opreg` to `oprm` first.
@@ -51,6 +54,10 @@ SZ32 value opsz
 : modrm, ( -- )
   opmod 3 lshift opreg or 3 lshift oprm or dup $100 < _assert c, ;
 
+\ Write down the SIB byte.
+: sib, ( -- )
+  oprm SIB = opmod 3 < and if sib c, then ;
+
 \ Write down `disp` if needed.
 : disp, ( -- )
   opmod case
@@ -58,6 +65,8 @@ SZ32 value opsz
     1 of = disp c, endof
     2 of = disp , endof
   endcase ;
+
+: msd, modrm, sib, disp, ;
 
 \ Write down an immediate.
 : imm, ( -- )
@@ -70,12 +79,12 @@ SZ32 value opsz
 
 \ Write down `opcode` in modrm mode.
 : opmodrm, ( opcode -- )
-  op, modrm, disp, asm$ ;
+  op, msd, asm$ ;
 
 \ Write down `opcode` in immediate mode.
 : opimm, ( opcode opreg -- )
   0 to opdirec \ TODO: allow sign-extend by making this logic variable
-  opreg! op, modrm, disp, imm, asm$ ;
+  opreg! op, msd, imm, asm$ ;
 
 \ Setting arguments
 
@@ -125,9 +134,11 @@ DH _ dh
     0 to opdirec
   then
 
+  oprm SP = if $24 to sib then \ special case for ESP
+
   disp case
     of not oprm MEM = to opmod endof
-    $100 of > 1 to opmod endof
+    of isbyte? 1 to opmod endof
     2 to opmod
   endcase ;
 
@@ -185,15 +196,18 @@ $009f0f op setg,   $009c0f op setl,   $00940f op setz,    $00950f op setnz,
 $040000 op add,    $3c0738 op cmp,     $2c0528 op sub,     $a8f084 op _test,
 $240420 op and,    $0c0108 op or,      $340630 op xor,
 
+\ TEST can only have one direction.
+: test, 0 to opdirec _test, ;
+
 \ Shifts. They come in 2 versions. The "naked" version is imm-only. The "cl"
 \ versions has CL as an inherent argument.
 : op ( opcode -- ) doer , does> @ dup 8 rshift
-  imm? _assert opreg! c, modrm, disp, imm c, asm$ ;
+  imm? _assert opreg! c, msd, imm c, asm$ ;
 $04c1 op shl,
 $05c1 op shr,
 
 : op ( opcode -- ) doer , does> @ dup 8 rshift
-  imm? not _assert opreg! c, modrm, disp, asm$ ;
+  imm? not _assert opreg! c, msd, asm$ ;
 $04d3 op shlcl,
 $05d3 op shrcl,
 
@@ -201,14 +215,16 @@ $05d3 op shrcl,
 : op ( op -- ) doer c, does> c@ ( opcode -- )
   oprm 0< _assert opsz SZ8 = not _assert opreg or c, asm$ ;
 $58 op pop,
-$50 op push,
+$50 op _push,
+
+\ PUSH can also push an immediate.
+: push, imm? if
+  opsz SZ8 = if $6a else $68 then c, imm, asm$ else
+  _push, then ;
 
 \ MOV has a special reg<-imm shortcut
 : mov,
   imm? if opmod 3 = if \ mov reg, imm shortcut
       $b0 opsz SZ8 = not 3 lshift or opreg or c, imm, asm$
-    else $c7 c, 0 opreg! modrm, disp, imm, asm$ then
+    else $c7 c, 0 opreg! msd, imm, asm$ then
   else $88 opmodrm, then ;
-
-\ TEST can only have one direction
-: test, 0 to opdirec _test, ;
