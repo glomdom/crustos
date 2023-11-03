@@ -4,8 +4,6 @@
 \ their main I/O. In addition to those words, this subsystem also implements
 \ some convenience words to manage where they point to.
 
-?f<< /lib/str.f
-
 : readbuf ( n hdl -- a? n ) dup @ execute ;
 : writebuf ( a n hdl -- n ) dup 4 + @ execute ;
 : flush ( hdl -- ) dup 8 + @ execute ;
@@ -13,7 +11,7 @@
 
 alias in< stdin ( -- c )
 
-create _buf( STR_MAXSZ allot
+create _buf( $100 allot
 here value _)buf
 
 \ Read stdin for a maximum of STR_MAXSZ-1 characters until LF is encountered,

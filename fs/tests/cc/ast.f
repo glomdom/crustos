@@ -3,7 +3,7 @@
 
 testbegin
 
-S" tests/cc/test.c" fopen dup [f<] to stdin parseast fclose
+S" tests/cc/test.c" findpath# fopen dup [f<] to stdin parseast fclose
 
 curunit firstchild dup nodeid AST_FUNCTION #eq ( fnode )
 dup ast.func.name S" retconst" s= #

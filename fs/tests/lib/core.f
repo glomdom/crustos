@@ -1,4 +1,5 @@
 ?f<< tests/harness.f
+require /sys/file.f
 
 testbegin
 
@@ -50,7 +51,7 @@ bar 102 #eq
 \ Autoloading
 floaded #
 
-S" some_nonexistant_file" floaded? not #
-S" tests/harness.f" floaded? #
+0 ( nonexistant_file ) floaded? not #
+S" /tests/harness.f" findpath floaded? #
 
 testend

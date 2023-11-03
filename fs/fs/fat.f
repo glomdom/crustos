@@ -62,9 +62,9 @@ $ffff const EOC
 
 \ Creates a new file at `path`
 : fatnewfile ( path -- direntry )
-  fatfindpathdir findfreedirentry
-  dup DIRENTRYSZ 0 fill
-  fnbuf( swap FNAMESZ move writecursector ;
+  fnbuf! getdirentry readdir
+  findfreedirentry dup DIRENTRYSZ 0 fill >r
+  fnbuf( r@ FNAMESZ move writecursector r> ;
 
 \ Write multiple sectors from `buf`
 : writesectors ( sec u buf -- )

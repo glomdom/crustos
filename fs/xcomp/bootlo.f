@@ -103,15 +103,10 @@ alias else endof immediate
 
 \ Autoloading
 0 value floaded \ address of the current "loaded file" structure
-: floaded, ( fname -- )
-  floaded here to floaded , ( fname ) dup c@ 1+ move, ;
-
-: bootfile word to' in< @ ['] boot< = if floaded, else drop then ;
+: floaded, ( id -- ) floaded here to floaded , , ;
 
 \ Doc Comment Placeholder
 alias \ \\
 
 \ Words for alias chaining
 : unaliases ' to' execute @ execute, ; immediate
-
-bootfile xcomp/bootlo.f
