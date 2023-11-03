@@ -1,8 +1,10 @@
 /* test a few simple C constructs */
 
+#[ 42 const MYCONST ]#
+
 // just return a constant
 int retconst() {
-    return 42;
+    return #[ MYCONST c]# ;
 }
 
 // test unary op and that we don't require whitespace around symbols
@@ -146,6 +148,7 @@ int global() {
 // "max" is a forth word defined in the system
 int sysword(int a, int b) {
     max(a, b);
+
     return pspop();
 }
 
@@ -154,9 +157,11 @@ void helloworld() {
 }
 
 // Now let's put all this together an start calling fancy forth words!
+// Here we see the power of macros in action. Let's say we're trying to call
+// the system word `=><=`. It's not a valid C identifier, so we use macros
+// to trick the parser into accepting it.
 int isinrange(int n, int l, int h) {
-    find("=><=");
-    pspop()(n, l, h);
+    #[ S" =><=" i]# (n, l, h);
 
     return pspop();
 }

@@ -1,9 +1,10 @@
 : immediate current 1- dup c@ $80 or swap c! ;
 : ['] ' litn ; immediate
 : to ['] ! [to] ;
-: to@ ['] @ [to] ;
 : to+ ['] +! [to] ;
 : to' ['] noop [to] ;
+: to@ ['] @ [to] ;
+: allot to+ here ;
 
 : compile ' litn ['] execute, execute, ; immediate
 : if compile (?br) here 4 allot ; immediate
@@ -14,6 +15,7 @@
 : again compile (br) , ; immediate
 : until compile (?br) , ; immediate
 : next compile (next) , ; immediate
+: leave r> r~ 1 >r >r ;
 
 : code word entry ;
 : create code compile (cell) ;
@@ -76,9 +78,6 @@ $20 const SPC $0d const CR $0a const LF $08 const BS
 : ." [compile] S" compile stype ; immediate
 : abort" [compile] ." compile abort ; immediate
 
-\ Flow Control
-: leave r> r~ 1 >r >r ;
-
 \ while..repeat
 : while [compile] if swap ; immediate
 : repeat [compile] again [compile] then ; immediate
@@ -99,11 +98,7 @@ alias else endof immediate
 : endcase ( then-stopgap jump1? jump2? ... jumpn? -- )
   ?dup if begin [compile] then ?dup not until then compile r~ ; immediate
 
-\ Sequences
-: [c]? ( c a u -- i )
-  ?dup not if 2drop -1 exit then A>r over >r >r >A ( c )
-  begin dup Ac@+ = if leave then next ( c )
-  A- Ac@ = if A> r> - ( i ) else r~ -1 then r>A ;
+\ Returns if `s1` and `s2` are equal.
 : s= ( s1 s2 -- f ) over c@ 1+ []= ;
 
 \ Autoloading

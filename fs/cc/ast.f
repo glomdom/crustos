@@ -1,5 +1,6 @@
 \ C Compiler Abstract Syntax Tree
 
+?f<< lib/with.f
 ?f<< lib/wordtbl.f
 ?f<< cc/tok.f
 ?f<< cc/tree.f
@@ -53,6 +54,9 @@ create bopsprectbl  1 c, 1 c, 0 c, 0 c, 2 c, 2 c, 3 c, 3 c, 3 c, 3 c,
 15 const AST_FOR
 16 const AST_PSPUSH
 17 const AST_PSPOP
+
+: Constant ( n -- node ) AST_CONSTANT createnode swap , ;
+: Ident ( name -- node ) AST_IDENT createnode swap , ;
 
 \ It's important that decl.name and func.name have the same offset.
 \ Poor man's polymorphism..
@@ -182,6 +186,23 @@ ASTIDCNT wordtbl astdatatbl ( node -- node )
 : expectChar ( tok c -- ) isChar? _assert ;
 : read; ( -- ) nextt ';' expectChar ;
 
+\ Macros
+-1 value _pslvl \ PS level at last #[
+
+: runmacro
+  ['] cc< to' in< with[ begin word runword _pslvl 0< until ]with ;
+
+: #[0 scnt to _pslvl runmacro ;
+: #[1 scnt 1+ to _pslvl runmacro ;
+
+: ]#
+  scnt _pslvl - ?dup if abort" PS imbalance during macros" then
+  -1 to _pslvl ;
+
+: c]# Constant ]# ;
+: i]# Ident ]# ;
+: +]# over addnode ]# ;
+
 \ Parse Words
 
 alias noop parseExpression ( tok -- node )
@@ -193,7 +214,7 @@ alias noop parseExpression ( tok -- node )
       of isIdent?
         AST_IDENT createnode swap , over addnode endof
       of parse
-        AST_CONSTANT createnode swap , over addnode endof
+        Constant over addnode endof
       _err
     endcase
 
@@ -258,6 +279,8 @@ alias noop parseExpression ( tok -- node )
       AST_PSPOP createnode parsePostfixOp
     endof
 
+    S" #[" of s= #[1 parsePostfixOp endof
+
     of uopid
       AST_UNARYOP createnode swap ,
       nextt parseFactor over addnode
@@ -267,7 +290,7 @@ alias noop parseExpression ( tok -- node )
       AST_IDENT createnode r@ , parsePostfixOp
     endof
 
-    r@ parse if AST_CONSTANT createnode swap , else _err then
+    r@ parse if Constant else _err then
   endcase ;
 
 \ An expression can be 2 things:
@@ -383,6 +406,7 @@ current to parseStatements
 
 \\ Parse the next element in a `Unit` node
 : parseUnit ( unitnode tok -- )
+  dup S" #[" s= if drop #[0 drop exit then
   parseType _assert parseType*
   expectIdent rot nextt case
     S" (" of s=
@@ -398,5 +422,4 @@ current to parseStatements
 
 : parseast ( -- )
   AST_UNIT createnode dup to curunit
-  nextt? ?dup not if exit then begin
-    over swap parseUnit nextt? ?dup not until drop ;
+  begin nextt? ?dup while over swap parseUnit repeat drop ;

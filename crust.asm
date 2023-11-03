@@ -103,6 +103,7 @@ firstword 'bye', 3, word_bye
     int 0x80
 
 defword 'noop', 4, word_noop
+_ret:
     ret
 
 defword 'main', 4, word_main
@@ -168,7 +169,7 @@ defword '(does)', 6, word_doesroutine
 defword '(s)', 3, word_strlit
     pop esi
     pspush esi
-    mov eax, 0
+    xor eax, eax
     lodsb
     add esi, eax
     jmp esi
@@ -401,6 +402,7 @@ defword 'c!', 2, word_cstore
 
 defword 'c,', 2, word_cwrite
     pspop eax
+_cwrite:             ; eax=n
     mov esi, [here]
     mov [esi], al
     inc dword [here]
@@ -439,6 +441,7 @@ defword '+!', 2, word_addstore
 
 defword ',', 1, word_write
     pspop eax
+_write:         ; eax=n
     mov esi, [here]
     mov [esi], eax
     add dword [here], CELLSZ
@@ -525,23 +528,22 @@ litncode:
     pspush 0
 litncode_end:
 defword 'litn', 4, word_litn
-    pspush litncode
-    pspush litncode_end-litncode-CELLSZ
-    call word_movewrite
+    mov esi, litncode
+    mov ecx, litncode_end-litncode-CELLSZ
+    call _movewrite
     jmp word_write
 
 defword 'execute,', 8, word_executewrite
-    pspush 0xe8
-    call word_cwrite
-    mov eax, [ebp]
+    mov al, 0xe8
+    call _cwrite
+    pspop eax
     sub eax, [here]
     sub eax, 4
-    mov [ebp], eax
-    jmp word_write
+    jmp _write
 
 defword 'exit,', 5, word_exitwrite
-    pspush 0xc3
-    jmp word_cwrite
+    mov al, 0xc3
+    jmp _cwrite
 
 ; The part below used to be written in a pseudo cross-compatible forth, but
 ; the tooling around it was too complex for what it was worth.
@@ -567,11 +569,7 @@ defword 'compiling', 9, word_compiling
 defword 'in<', 3, word_inrd
     sysalias inrd
 
-defword 'allot', 5, word_allot
-    pspop eax
-    add dword [here], eax
-    ret
-
+; ( src dst u -- )
 defword 'move', 4, word_move
     pspop ecx
     pspop edi
@@ -579,7 +577,6 @@ defword 'move', 4, word_move
     test ecx, ecx
     jz _ret
     rep movsb
-_ret:
     ret
 
 defword 'move,', 5, word_movewrite
@@ -587,6 +584,7 @@ defword 'move,', 5, word_movewrite
     pspop esi
     test ecx, ecx
     jz _ret
+_movewrite:         ; esi=a ecx=u
     mov edi, [here]
     add dword [here], ecx
     rep movsb
@@ -669,7 +667,7 @@ _word_eof:
 defword 'word', 4, word_word
     call word_maybeword
     test dword [ebp], -1
-    jnz word_noop
+    jnz _ret
     mov ecx, 13
     mov esi, wordexpstr
     jmp _errmsg
@@ -808,16 +806,16 @@ defword "'", 1, word_apos
     ret
 
 defword 'entry', 5, word_entry
-    mov esi, [ebp]
+    pspop esi
     xor ecx, ecx
     mov cl, [esi]
-    inc dword [ebp]
-    pspush ecx
-    call word_tuck
-    call word_movewrite
-    call word_current
-    call word_write
-    call word_cwrite
+    inc esi
+    mov edx, ecx
+    call _movewrite
+    mov eax, [current]
+    call _write
+    mov eax, edx
+    call _cwrite
     mov eax, [here]
     mov [current], eax
     ret
@@ -863,7 +861,7 @@ defword 'runword', 7, word_runword
     call word_parse
     pspop eax
     test eax, eax
-    jnz word_noop
+    jnz _ret
     pspush curword
     call word_find
     test dword [ebp], -1

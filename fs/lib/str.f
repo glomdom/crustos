@@ -1,11 +1,16 @@
-\ String Utilities
-\ All string utitilies operate on an "active string", which is set with `>s`
+\ String/Range Utilities
 
 \\ Maximum value of strings (including the size byte)
 $100 value STR_MAXSZ
 
 : ws? SPC <= ;
 : s) c@+ + ;
+
+\\ Index of `c` inside range `a u`. -1 if not found.
+: [c]? ( c a u -- i )
+  ?dup not if 2drop -1 exit then A>r over >r >r >A
+  begin dup Ac@+ = if leave then next
+  A- Ac@ = if A> r> - else r~ -1 then r>A ;
 
 : sappend ( c str -- ) tuck s) c! dup c@ 1+ swap c! ;
 
