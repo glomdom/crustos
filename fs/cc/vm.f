@@ -201,7 +201,7 @@ operands value 'curop
 \ Call the address in current op and put the result of that call in `op`.
 : vmcall, ( -- )
   VM_*CONSTANT optype = if oparg VM_NONE optype! else opAsm then
-  call, opdeinit 0 to callsz ;
+  abs>rel call, opdeinit 0 to callsz ;
 
 \ Allocate a new register for active op and pop 4b from PS into it.
 : vmpspop,
@@ -285,7 +285,7 @@ operands value 'curop
 
 : ]vmjmp ( 'jump_addr -- ) here over - 4 - swap ! ;
 : _ here 4 - ;
-: vmjmp, ( a -- ) jmp, ;
+: vmjmp, ( a -- ) abs>rel jmp, ;
 : vmjmp[, ( -- a ) 0 vmjmp, _ ;
 : vmjz, ( -- addr )
   selop1 opAsm opAsm test, opdeinit

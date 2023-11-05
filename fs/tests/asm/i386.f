@@ -22,7 +22,7 @@ foo2 1234 #eq
 
 \ Test call in its different forms
 code foo3
-  ' foo1 call,
+  ' foo1 abs>rel call,
   ax ' foo1 i) mov,
   ax call,
   ret,

@@ -10,28 +10,26 @@
 5 const MEM \ mod 0 + r/m 5 == abs memory
 4 const SIB \ mod 0/1/2 + r/m 4 == SIB
 
-\ Size modes
-0 const SZ32
-1 const SZ16
-2 const SZ8
-
-SZ32 value opsz
+0 value op8b    \ is current op 8bit?
 1 value opdirec \ 1: reg=tgt r/m=src | 0: reg=src r/m=tgt
-3 value opmod \ by default, we're in "direct reg" mode
--1 value opreg \ -1 = unset
--1 value oprm \ -1 = unset
-0 value imm? \ are we in immediate mode?
-0 value imm \ value of current immediate, if set
-0 value disp \ displacement value
-0 value sib \ value of the SIB byte
-0 value ORG \ base addr for jmp, and call, rel32 computing
+3 value opmod   \ by default, we're in "direct reg" mode
+-1 value opreg  \ -1 = unset
+-1 value oprm   \ -1 = unset
+0 value imm?    \ are we in immediate mode?
+0 value imm     \ value of current immediate, if set
+0 value disp    \ displacement value
+0 value sib     \ value of the SIB byte
+0 value realmode
 
 \ Utilities
-: asm$ SZ32 to opsz 1 to opdirec 3 to opmod -1 to opreg -1 to oprm 0 to imm? ;
+: asm$ 0 to op8b 1 to opdirec 3 to opmod -1 to opreg -1 to oprm 0 to imm? ;
 : _err abort" argument error" ;
 : _assert not if _err then ;
 : w, here w! 2 allot ;
 : isbyte? ( n -- f ) $100 < ;
+: is16bit? realmode ;
+: dw, is16bit? if w, else , then ;
+: dwc, op8b if c, else dw, then ;
 
 \ Force a value into `opreg`. If `opreg` is -1, we simply set it, but if it's set,
 \ then we move `opreg` to `oprm` first.
@@ -41,15 +39,15 @@ SZ32 value opsz
     opreg to oprm then
   to opreg ;
 
-: .asm ." sz " opsz . ."  d" opdirec . ."  mod " opmod . ."  reg " opreg .
+: .asm ." 8b? " op8b . ."  d" opdirec . ."  mod " opmod . ."  reg " opreg .
   ."  r/m " oprm . ."  disp " disp .x
   ."  imm " imm? if imm .x else ." none" then nl> ;
 
 \ Writing the operation
 
-\ Write `opcode`, mixing it with `opdirec` and `opsz`
+\ Write `opcode`, mixing it with `opdirec` and `op8b`
 : op, ( opcode -- )
-  opdirec << or opsz SZ8 = not or dup $ff > if w, else c, then ;
+  opdirec << or op8b not or dup $ff > if w, else c, then ;
 
 \ Write down `modrm`, errors out if not all parts are there.
 : modrm, ( -- )
@@ -62,21 +60,16 @@ SZ32 value opsz
 \ Write down `disp` if needed.
 : disp, ( -- )
   opmod case
-    0 of = oprm MEM = if disp , then endof
+    0 of = oprm MEM = if disp dw, then endof
     1 of = disp c, endof
-    2 of = disp , endof
+    2 of = disp dw, endof
   endcase ;
 
 : msd, modrm, sib, disp, ;
 
 \ Write down an immediate.
 : imm, ( -- )
-  imm opsz case
-    SZ32 of = , endof
-    SZ16 of = w, endof
-    SZ8 of = c, endof
-    _err
-  endcase ;
+  imm dwc, ;
 
 \ Write down `opcode` in modrm mode.
 : opmodrm, ( opcode -- )
@@ -116,7 +109,7 @@ SZ32 value opsz
 AX _ ax BX _ bx CX _ cx DX _ dx
 SP _ sp BP _ bp SI _ si DI _ di
 
-: _ doer ( reg -- ) c, does> c@ r! SZ8 to opsz ;
+: _ doer ( reg -- ) c, does> c@ r! 1 to op8b ;
 AL _ al
 BL _ bl
 CL _ cl
@@ -155,8 +148,12 @@ DH _ dh
 : op ( opcode -- ) doer c, does> ( a -- ) c@ c, asm$ ;
 $c3 op ret,
 
+\ Jumps and relative addresses
+: abs>rel ( a -- rel32 ) here - ;
+: rel, ( rel32-or-16 ) is16bit? if 3 - w, else 5 - , then ;
+
 \ Conditional jumps
-: op ( opcode -- ) doer , does> ( rel32 a -- ) @ op, , ;
+: op ( opcode -- ) doer , does> ( rel32-or-16 a -- ) @ op, rel, ;
 $840f op jz,
 $850f op jnz,
 
@@ -165,9 +162,9 @@ $850f op jnz,
 \ argument at all*. In the latter case, an absolute addr to call is waiting on
 \ PS. in the opcode structure, lower byte is the "direct" opcode and 2nd one is
 \ the "opreg" for the modrm version.
-: op ( opcode -- ) doer , does> @ ( rel32? opcode -- )
+: op ( opcode -- ) doer , does> @ ( rel32-or-16? opcode -- )
   opreg 0< if
-    c, here - ORG + 4 - , asm$
+    c, rel, asm$
   else
     8 rshift opreg! $ff opmodrm,
   then ;
@@ -214,19 +211,19 @@ $05d3 op shrcl,
 
 \ Push/Pop
 : op ( op -- ) doer c, does> c@ ( opcode -- )
-  oprm 0< _assert opsz SZ8 = not _assert opreg or c, asm$ ;
+  oprm 0< _assert op8b not _assert opreg or c, asm$ ;
 $58 op pop,
 $50 op _push,
 
 \ PUSH can also push an immediate.
 : push, imm? if
-  opsz SZ8 = if $6a else $68 then c, imm, asm$ else
+  op8b if $6a else $68 then c, imm, asm$ else
   _push, then ;
 
 \ MOV has a special reg<-imm shortcut
 : mov,
   imm? if opmod 3 = if \ mov reg, imm shortcut
-      $b0 opsz SZ8 = not 3 lshift or opreg or c, imm, asm$
+      $b0 op8b not 3 lshift or opreg or c, imm, asm$
     else $c7 c, 0 opreg! msd, imm, asm$ then
   else $88 opmodrm, then ;
 
