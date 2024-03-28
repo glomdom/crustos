@@ -1,5 +1,17 @@
 # crustos
 
+pet os being devved in my freetime
+
+## building and running!!
+
+```console
+$ git clone https://github.com/glomdom/crustos
+$ cd crustos
+$ make pcrun
+```
+
+## planned features
+
 current planned features are:
 - be able to access a wide variety of filesystems
 - be able to access a wide variety of storage devices, including modern ones
