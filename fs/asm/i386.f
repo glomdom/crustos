@@ -146,7 +146,7 @@ DH _ dh
 
 \ Inherent
 : op ( opcode -- ) doer c, does> ( a -- ) c@ c, asm$ ;
-$c3 op ret,
+$c3 op ret,        $fa op cli,         $fa op cld,
 
 \ Jumps and relative addresses
 : abs>rel ( a -- rel32 ) here - ;
