@@ -1,16 +1,17 @@
 \ i386 assembler
-\ This assembler implies that the code will run in protected mode with the D
-\ attribute set.
+?f<< /asm/label.f
 
 \ MOD/RM constants
 0 const AX    1 const CX    2 const DX    3 const BX
 4 const SP    5 const BP    6 const SI    7 const DI
 0 const AL    1 const CL    2 const DL    3 const BL
 4 const AH    5 const CH    6 const DH    7 const BH
-5 const MEM \ mod 0 + r/m 5 == abs memory
+0 const ES    1 const CS    2 const SS    3 const DS
+4 const FS    5 const GS
 4 const SIB \ mod 0/1/2 + r/m 4 == SIB
 
 0 value op8b    \ is current op 8bit?
+0 value opsreg  \ if we have a "special" reg, this contains the override opcode
 1 value opdirec \ 1: reg=tgt r/m=src | 0: reg=src r/m=tgt
 3 value opmod   \ by default, we're in "direct reg" mode
 -1 value opreg  \ -1 = unset
@@ -22,12 +23,17 @@
 0 value realmode
 
 \ Utilities
-: asm$ 0 to op8b 1 to opdirec 3 to opmod -1 to opreg -1 to oprm 0 to imm? ;
-: _err abort" argument error" ;
+: asm$ 0 to op8b 0 to opsreg 1 to opdirec 3 to opmod -1 to opreg -1 to oprm
+  0 to imm? ;
+: _err asm$ abort" argument error" ;
 : _assert not if _err then ;
 : w, here w! 2 allot ;
 : isbyte? ( n -- f ) $100 < ;
 : is16bit? realmode ;
+
+\ in 16bit, abs mem = mod0 + rm 6, in 32-bit its rm 5
+: memoprm 5 is16bit? + ;
+: maybe8b ( opcode -- opcode ) op8b not or ;
 : dw, is16bit? if w, else , then ;
 : dwc, op8b if c, else dw, then ;
 
@@ -36,7 +42,8 @@
 : opreg! ( reg -- )
   opreg 0>= if
     oprm 0< _assert
-    opreg to oprm then
+    opreg to oprm
+    0 to opdirec then
   to opreg ;
 
 : .asm ." 8b? " op8b . ."  d" opdirec . ."  mod " opmod . ."  reg " opreg .
@@ -47,7 +54,7 @@
 
 \ Write `opcode`, mixing it with `opdirec` and `op8b`
 : op, ( opcode -- )
-  opdirec << or op8b not or dup $ff > if w, else c, then ;
+  opdirec << or dup 8 rshift $ff and ?dup if c, then c, ;
 
 \ Write down `modrm`, errors out if not all parts are there.
 : modrm, ( -- )
@@ -60,7 +67,7 @@
 \ Write down `disp` if needed.
 : disp, ( -- )
   opmod case
-    0 of = oprm MEM = if disp dw, then endof
+    0 of = oprm memoprm = if disp dw, then endof
     1 of = disp c, endof
     2 of = disp dw, endof
   endcase ;
@@ -78,7 +85,7 @@
 \ Write down `opcode` in immediate mode.
 : opimm, ( opcode opreg -- )
   0 to opdirec \ TODO: allow sign-extend by making this logic variable
-  opreg! op, msd, imm, asm$ ;
+  opreg! maybe8b op, msd, imm, asm$ ;
 
 \ Setting arguments
 
@@ -109,17 +116,30 @@
 AX _ ax BX _ bx CX _ cx DX _ dx
 SP _ sp BP _ bp SI _ si DI _ di
 
-: _ doer ( reg -- ) c, does> c@ r! 1 to op8b ;
-AL _ al
-BL _ bl
-CL _ cl
-DL _ dl
-AH _ ah
-BH _ bh
-CH _ ch
-DH _ dh
+: _ doer ( reg -- ) c, does> c@ ( reg ) r! 1 to op8b ;
+AL _ al   BL _ bl   CL _ cl   DL _ dl   AH _ ah   BH _ bh   CH _ ch   DH _ dh
+
+: _ doer ( reg -- ) c, does> c@ ( reg ) opreg! $8c to opsreg ;
+ES _ es   SS _ ss   DS _ ds   FS _ fs   GS _ gs
+
+: _ doer ( reg -- ) c, does> c@ ( reg ) opreg! $0f20 to opsreg ;
+0 _ cr0   2 _ cr2   3 _ cr3
+
+: _ doer ( reg -- ) c, does> c@ ( reg ) opreg! $0f21 to opsreg ;
+0 _ dr0   1 _ dr1   2 _ dr2   3 _ dr3   6 _ dr6   7 _ dr7
+
+: _ doer ( reg -- ) c, does> c@ ( reg ) opreg! $0f24 to opsreg ;
+6 _ tr6   7 _ tr7
 
 : i) ( imm -- ) 1 to imm? to imm ;
+
+: is16breg>[oprm] ( reg ) case
+    SI of = 4 endof
+    DI of = 5 endof
+    BP of = 6 endof
+    BX of = 7 endof
+    _err
+  endcase ;
 
 : d) ( disp -- ) to disp
   oprm 0< if
@@ -128,10 +148,11 @@ DH _ dh
     0 to opdirec
   then
 
+  is16bit? if oprm is16breg>[oprm] to oprm then
   oprm SP = if $24 to sib then \ special case for ESP
 
   disp case
-    of not oprm MEM = to opmod endof
+    of not oprm memoprm = to opmod endof
     of isbyte? 1 to opmod endof
     2 to opmod
   endcase ;
@@ -140,22 +161,20 @@ DH _ dh
   oprm 0< _assert
   opreg 0< if
     0 to opdirec then
-  0 to opmod MEM to oprm ;
+  0 to opmod memoprm to oprm ;
 
 \ Operations
 
 \ Inherent
 : op ( opcode -- ) doer c, does> ( a -- ) c@ c, asm$ ;
-$c3 op ret,        $fa op cli,         $fa op cld,
+$c3 op ret,        $90 op nop,         $fa op cli,         $fa op cld,
 
 \ Jumps and relative addresses
-: abs>rel ( a -- rel32 ) here - ;
 : rel, ( rel32-or-16 ) is16bit? if 3 - w, else 5 - , then ;
 
 \ Conditional jumps
 : op ( opcode -- ) doer , does> ( rel32-or-16 a -- ) @ op, rel, ;
-$840f op jz,
-$850f op jnz,
+$0f84 op jz,        $0f85 op jnz,
 
 \ JMP and CALL
 \ These are special. They can either be called with a modrm tgt, or with *no
@@ -168,18 +187,25 @@ $850f op jnz,
   else
     8 rshift opreg! $ff opmodrm,
   then ;
-$04e9 op jmp,
-$02e8 op call,
+$04e9 op jmp,      $02e8 op call,
+
+: jmpfar, ( seg16 absaddr ) $ea c, dw, w, ;
+: callfar, ( seg16 absaddr ) $9a c, dw, w, ;
+
+: forward! ( jmpaddr - )
+  c@+ $0f = if 1+ then pc over - ( a rel )
+  is16bit? if 2 - swap w! else 4 - swap ! then ;
 
 \ Single operand
-\ opcode format 00000000 00000rrr mmmmmmmm mmmmmm00
+\ opcode format 00000000 00000rrr mmmmmmmm mmmmmmmm
 \ r = opreg override
 \ m = modrm opcode
 : op ( reg opcode -- ) doer , does> @ ( opcode -- )
   dup 16 rshift opreg! $ffff and opmodrm, ;
-$0400f7 op mul,    $0300f7 op neg,    $0200f7 op not,
+$0400f7 op mul,    $0300f7 op neg,     $0200f7 op not,
 $0100ff op dec,    $0000ff op inc,
-$009f0f op setg,   $009c0f op setl,   $00940f op setz,    $00950f op setnz,
+$000f9f op setg,   $000f9c op setl,    $000f94 op setz,    $000f95 op setnz,
+$020f01 op lgdt,   $030f01 op lidt,
 
 \ Two operands
 \ opcode format 00000000 ssssssss iiiiirrr mmmmmm00
@@ -190,7 +216,7 @@ $009f0f op setg,   $009c0f op setl,   $00940f op setz,    $00950f op setnz,
 : op ( opcode -- ) doer , does> @ ( opcode )
   imm? if
     8 rshift dup >> $fc and $80 or swap 7 and opimm,
-  else $ff and opmodrm, then ;
+  else $ff and maybe8b opmodrm, then ;
 $040000 op add,    $3c0738 op cmp,     $2c0528 op sub,     $a8f084 op _test,
 $240420 op and,    $0c0108 op or,      $340630 op xor,
 
@@ -225,7 +251,8 @@ $50 op _push,
   imm? if opmod 3 = if \ mov reg, imm shortcut
       $b0 op8b not 3 lshift or opreg or c, imm, asm$
     else $c7 c, 0 opreg! msd, imm, asm$ then
-  else $88 opmodrm, then ;
+  else
+    opsreg if opsreg else $88 maybe8b then opmodrm, then ;
 
 \ INT is special
 : int, ( n -- ) $cd c, c, ;

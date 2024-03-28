@@ -22,7 +22,7 @@ fatfs: $(ALL_SRCS)
 	@printf "%8s %s -> %s\n" MCOPY "fs/*" $@ 
 	@mcopy -sQ -i $@ fs/* ::
 
-pc.bin: crust
+pc.bin: crust buildpc.f
 	@./crust < buildpc.f 2> $@
 # @printf "%8s %s -> %s" CRUST buildpc.f $@
 

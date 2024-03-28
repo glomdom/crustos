@@ -21,15 +21,17 @@ code foo2
 foo2 1234 #eq
 
 \ Test call in its different forms
+0 value mylabel
 code foo3
   ' foo1 abs>rel call,
   ax ' foo1 i) mov,
   ax call,
+  forward call, to mylabel
   ret,
-foo3 42 #eq 42 #eq
 
 \ Test shr/shl
 code foo4
+  mylabel forward!
   ax 42 i) mov,
   ax 3 i) shl,
   cl 2 i) mov,
@@ -38,6 +40,7 @@ code foo4
   bp 0 d) ax mov,
   ret,
 foo4 84 #eq
+foo3 84 #eq 42 #eq 42 #eq
 
 \ Test single operands
 code foo5
